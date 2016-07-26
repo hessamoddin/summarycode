@@ -7,3 +7,7 @@ nFrames=loaded_summary['gt_score'].shape[0]
 summary_score=nFrames=loaded_summary['gt_score']
 
 #Subsample the video
+starting_frame=1
+ending_frame=nFrames
+timestep=80
+selected_keyframes=[starting_frame:ending_frame:timestep]
