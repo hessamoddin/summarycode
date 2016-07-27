@@ -16,10 +16,9 @@ def chunks(l, n):
 data_path='/home/hessam/code/data/GT'
 onlyfiles = [f for f in listdir(data_path) if isfile(join(data_path, f))]
 num_videos=len(onlyfiles)
-
-
 current_file=onlyfiles[0]
-loaded_summary=matreader.loadmat(current_file) # change the filename
+full_path=join(data_path,onlyfiles[0])
+loaded_summary=matreader.loadmat(full_path) # change the filename
 nFrames=loaded_summary['gt_score'].shape[0]
 summary_score=loaded_summary['gt_score']
 
