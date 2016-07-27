@@ -23,5 +23,6 @@ sampling_id=np.arange(starting_frame,ending_frame,step)
 splitted_subsampled_summary_id=list(chunks(sampling_id, num_LSTMs))
 num_splitted_video=len(splitted_subsampled_summary_id)
 
+# Iterate over keyframes of all segments of videos
 for i in range(0,num_splitted_video):
   print(i)
