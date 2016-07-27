@@ -1,6 +1,9 @@
 import numpy as np
 import scipy.io as matreader
 import pprint
+from os import listdir
+from os.path import isfile, join
+
 
 # To split video into different evenly sized set of frames to feed into LSTMs
 def chunks(l, n):
@@ -10,7 +13,13 @@ def chunks(l, n):
 
 
 # Read the summary file
-loaded_summary=matreader.loadmat('/home/hessam/code/data/GT/Air_Force_One.mat')
+data_path='/home/hessam/code/data/GT'
+onlyfiles = [f for f in listdir(data_path) if isfile(join(data_path, f))]
+num_videos=len(onlyfiles)
+
+
+current_file=onlyfiles[0]
+loaded_summary=matreader.loadmat(current_file) # change the filename
 nFrames=loaded_summary['gt_score'].shape[0]
 summary_score=loaded_summary['gt_score']
 
