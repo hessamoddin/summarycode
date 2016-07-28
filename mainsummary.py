@@ -3,6 +3,14 @@ import scipy.io as matreader
 import pprint
 from os import listdir
 from os.path import isfile, join
+from __future__ import division, print_function, absolute_import
+import tflearn
+
+
+
+import tflearn.datasets.mnist as mnist
+X, Y, testX, testY = mnist.load_data(one_hot=True)
+X = np.reshape(X, (-1, 28, 28))
 
 
 # To split video into different evenly sized set of frames to feed into LSTMs
