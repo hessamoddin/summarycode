@@ -10,12 +10,19 @@ import imageio
 from skimage.transform import resize
 from skimage.color import rgb2gray
 
+
 # To split video into different evenly sized set of frames to feed into LSTMs
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
     for i in range(0, len(l), n):
         yield l[i:i+n]
-
+        
+        
+# Load this video file
+videofilename='/home/hessam/code/data/videos/Air_Force_One.mp4'
+vid = imageio.get_reader(videofilename,  'ffmpeg')
+# number of frames in video
+num_frames=vid._meta['nframes']
 
 ######## Extract frame features ##############
 
@@ -30,17 +37,14 @@ batch_size=len(video_sequence_frameid)  # batch size: number of rows of sequenti
 
 
 ######## Load Video Clip  Raw Data ##############
-# Load this video file
-videofilename='/home/hessam/code/data/videos/Air_Force_One.mp4'
-vid = imageio.get_reader(videofilename,  'ffmpeg')
-# number of frames in video
-num_frames=vid._meta['nframes']
-#10th frame
+
+#10th frame--should be changed
 frame = vid.get_data(10) 
 #resize frame
 frame_resized=resize(frame, (100, 100))
 #convert the color frame to gray-scale
 frame_gray= rgb2gray(frame_resized)
+
 
 
 
