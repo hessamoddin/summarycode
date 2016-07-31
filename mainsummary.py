@@ -1,3 +1,5 @@
+
+###  Summarization algorithm by Hessamoddin Shafeian
 ############ Load Libraries ##############
 from __future__ import division, print_function, absolute_import
 import numpy as np
