@@ -17,6 +17,18 @@ def chunks(l, n):
         yield l[i:i+n]
 
 
+######## Extract frame features ##############
+
+#Subsample the video
+starting_frame=1
+ending_frame=num_frames
+step=80  #sampling step
+num_LSTMs=10  #number of LSTMs per video
+sampling_id=np.arange(starting_frame,ending_frame,step) 
+video_sequence_frameid=list(chunks(sampling_id, num_LSTMs)) #batch of video sequence of frame ids
+batch_size=len(video_sequence_frameid)  # batch size: number of rows of sequential data to be fed to LSTMs
+
+
 ######## Load Video Clip  Raw Data ##############
 # Load this video file
 videofilename='/home/hessam/code/data/videos/Air_Force_One.mp4'
@@ -29,18 +41,6 @@ frame = vid.get_data(10)
 frame_resized=resize(frame, (100, 100))
 #convert the color frame to gray-scale
 frame_gray= rgb2gray(frame_resized)
-
-######## Extract frame features ##############
-
-#Subsample the video
-starting_frame=1
-ending_frame=num_frames
-step=80  #sampling step
-num_LSTMs=10  #number of LSTMs per video
-sampling_id=np.arange(starting_frame,ending_frame,step) 
-video_sequence_frameid=list(chunks(sampling_id, num_LSTMs)) #batch of video sequence of frame ids
-batch_size=len(video_sequence_frameid)  # batch size: number of rows of sequential data to be fed to LSTMs
-
 
 
 
