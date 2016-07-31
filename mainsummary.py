@@ -37,7 +37,7 @@ step=80  #sampling step
 num_LSTMs=10  #number of LSTMs per video
 sampling_id=np.arange(starting_frame,ending_frame,step) 
 splitted_subsampled_summary_id=list(chunks(sampling_id, num_LSTMs)) #multiple rows of sequential data
-num_splitted_video=len(splitted_subsampled_summary_id)  # number of rows of sequential data to be fed to LSTMs
+subsampled_video_rows=len(splitted_subsampled_summary_id)  # number of rows of sequential data to be fed to LSTMs
 
 # Iterate over keyframes of all segments of videos
 for i in range(0,num_splitted_video):
