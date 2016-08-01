@@ -24,6 +24,12 @@ def Daisy_Extractor_Fn(vid,frame_no,new_shape=(120,180),step=50, radius=20):
         frame_gray= rgb2gray(frame_resized)
         daisy_desc = daisy(frame_gray,step=step, radius=radius)
         descs_1D=np.ravel(daisy_desc)
+        sift = cv2.xfeatures2d.SIFT_create()
+        (kps, descs) = sift.detectAndCompute(gray, None)
+        print("# kps: {}, descriptors: {}".format(len(kps), descs.shape))
+        surf = cv2.xfeatures2d.SURF_create()
+        (kps, descs) = surf.detectAndCompute(gray, None)
+        print("# kps: {}, descriptors: {}".format(len(kps), descs.shape))
     else:
         print("Frame number is larger than the length of video")
     return descs_1D
