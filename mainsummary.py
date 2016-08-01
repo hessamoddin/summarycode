@@ -32,7 +32,7 @@ def Feature_Extractor_Fn(vid,frame_no,new_shape=(120,180),step=50, radius=20):
         print("# kps: {}, descriptors: {}".format(len(surf_kps), surf_descs.shape))
     else:
         print("Frame number is larger than the length of video")
-    return (descs_1D,surf_descs,sit_descs)
+    return (descs_1D,surf_descs,sift_descs)
     
 
 
