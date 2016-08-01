@@ -25,14 +25,14 @@ def Feature_Extractor_Fn(vid,frame_no,new_shape=(120,180),step=50, radius=20):
         daisy_desc = daisy(frame_gray,step=step, radius=radius)
         descs_1D=np.ravel(daisy_desc)
         sift = cv2.xfeatures2d.SIFT_create()
-        (kps, descs) = sift.detectAndCompute(frame, None)
+        (sift_kps, sit_descs) = sift.detectAndCompute(frame, None)
         print("# kps: {}, descriptors: {}".format(len(kps), descs.shape))
         surf = cv2.xfeatures2d.SURF_create()
-        (kps, descs) = surf.detectAndCompute(frame, None)
+        (surf_kps, surf_descs) = surf.detectAndCompute(frame, None)
         print("# kps: {}, descriptors: {}".format(len(kps), descs.shape))
     else:
         print("Frame number is larger than the length of video")
-    return (descs_1D,surf,sift)
+    return (descs_1D,surf_descs,sit_descs)
     
 
 
