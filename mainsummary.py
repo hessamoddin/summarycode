@@ -69,7 +69,7 @@ def dictionary(descriptors, N):
 	#save("weights.gmm", gmm.weights_)
 	return float32(gmm.means_),float32(gmm.covars_),float32(gmm.weights_)
 
-
+a,b,c= Feature_Extractor_Fn(vid,frame_no)
 for i in xrange(batch_size):
     for j in xrange(num_LSTMs):
        current_frame_id=video_sequence_frameid[i][j]
