@@ -17,7 +17,7 @@ from skimage.feature import daisy
 import matplotlib.cbook as cbook
 
 ############ Extract frame features ##############
-def Daisy_Extractor_Fn(vid,frame_no,new_shape=(120,180),step=50, radius=20):
+def Feature_Extractor_Fn(vid,frame_no,new_shape=(120,180),step=50, radius=20):
     if frame_no<num_frames: 
         frame = vid.get_data(frame_no)  
         frame_resized=resize(frame, new_shape)
@@ -32,7 +32,7 @@ def Daisy_Extractor_Fn(vid,frame_no,new_shape=(120,180),step=50, radius=20):
         print("# kps: {}, descriptors: {}".format(len(kps), descs.shape))
     else:
         print("Frame number is larger than the length of video")
-    return descs_1D
+    return (descs_1D,surf,sift)
     
 
 
@@ -60,10 +60,11 @@ sampling_id=np.arange(starting_frame,ending_frame,step)
 video_sequence_frameid=list(chunks(sampling_id, num_LSTMs)) #batch of video sequence of frame ids
 batch_size=len(video_sequence_frameid)  # batch size: number of rows of sequential data to be fed to LSTMs
 
+
 for i in xrange(batch_size):
     for j in xrange(num_LSTMs):
        current_frame_id=video_sequence_frameid[i][j]
-       current_feature=Daisy_Extractor_Fn(vid,current_frame_id)
+       current_feature=Feature_Extractor_Fn(vid,current_frame_id)
 
 ############ Load Summary File ##############
 data_path='/home/hessam/code/data/GT'
