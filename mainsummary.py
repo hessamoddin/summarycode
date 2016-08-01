@@ -61,14 +61,7 @@ video_sequence_frameid=list(chunks(sampling_id, num_LSTMs)) #batch of video sequ
 batch_size=len(video_sequence_frameid)  # batch size: number of rows of sequential data to be fed to LSTMs
 
 
-def dictionary(descriptors, N):
-	gmm = mixture.GMM(n_components=N,covariance_type='full')
-	gmm.fit(descriptors)
-	#save("means.gmm", gmm.means_)
-	#save("covs.gmm", gmm.covars_)
-	#save("weights.gmm", gmm.weights_)
-	return float32(gmm.means_),float32(gmm.covars_),float32(gmm.weights_)
-
+ 
 a,b,c= Feature_Extractor_Fn(vid,1)
 
 for i in xrange(batch_size):
