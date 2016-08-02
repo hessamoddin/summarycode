@@ -176,12 +176,12 @@ daisy_arr=np.asarray(daisy_list)
 daisy_bovw_training=daisy_arr
 
 # first method of bovw calculation: kmeans
-codebook_size=math.floor(math.sqrt(len(daisy_bovw_training)))
+codebook_size=int(math.floor(math.sqrt(len(daisy_bovw_training))))
 codebook=learn_codebook(daisy_bovw_training, codebook_size)
 kmeans_bovw=bow(daisy_arr, codebook)
 
 # first method of bovw calculation: GMM (fisher vector)
-gm_obj=estimate_gm(X,codebook_size)
+gm_obj=estimate_gm(daisy_bovw_training,codebook_size)
 
 
 bovw_kmeans=[]
