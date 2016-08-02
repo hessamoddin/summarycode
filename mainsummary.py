@@ -15,6 +15,7 @@ from skimage.transform import resize
 from skimage.color import rgb2gray
 from skimage.feature import daisy
 import matplotlib.cbook as cbook
+from sklearn.cluster import KMeans
 
 ############ Extract frame features ##############
 def Feature_Extractor_Fn(vid,frame_no,new_shape=(120,180),step=50, radius=20):
@@ -61,6 +62,7 @@ video_sequence_frameid=list(chunks(sampling_id, num_LSTMs)) #batch of video sequ
 batch_size=len(video_sequence_frameid)  # batch size: number of rows of sequential data to be fed to LSTMs
  
  
+daisy_list=[]
  
 # Feature extraction
 for i in xrange(batch_size):
@@ -69,14 +71,23 @@ for i in xrange(batch_size):
         current_frame_id=video_sequence_frameid[i][j]
         if len(video_sequence_frameid[i])==num_LSTMs:
             daisy_1D,surf_descs,sift_descs=current_feature=Feature_Extractor_Fn(vid,current_frame_id)
+            daisy_list.append(daisy_1D)
  
-
+daisy_arr=np.asarray(daisy_list)
 ############ Bovw Construction ##############
 
 # Training videos only are used 
+# Training videos should be splitted as the size of datasets grows
 # For now only daisy features are used 
+daisy_arr_bovw_training=daisy_arr
 
-np.empty([2, 2])
+N_kmeans=7
+bovw_kmeans=[]
+kmeans = KMeans(n_clusters=N_kmeans, random_state=0).fit(daisy_arr_bovw_training)
+kmeans.fit(daisy_arr)
+bovw_cookbooks = kmeans.cluster_centers_.squeeze()
+kmeans_labels = kmeans.predict(daisy_arr)
+
 
 
 ############ Load Summary File ##############
