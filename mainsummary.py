@@ -22,7 +22,7 @@ import math
 
 # Reference: https://github.com/rkwitt/pyfsa/blob/master/core/fsa.py
 
-def estimate_gm(X,components=3,seed=None):
+def estimate_gm(X,components=math.floor(math.sqrt(len(X))),seed=None):
     """Estimate a Gaussian mixture model.
     Note: Uses diagonal covariance matrices.
     Parameters
@@ -53,7 +53,7 @@ def estimate_gm(X,components=3,seed=None):
     return gm_obj
 
 
-def learn_codebook(X, codebook_size=200, seed=None):
+def learn_codebook(X, codebook_size=math.floor(math.sqrt(len(X))), seed=None):
     """Learn a codebook.
     Run K-Means clustering to compute a codebook. K-Means
     is initialized by K-Means++, uses a max. of 500 iter-
