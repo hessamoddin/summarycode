@@ -20,9 +20,9 @@ import matplotlib.cbook as cbook
 from sklearn.cluster import KMeans
 import math
 
-# Reference: https://github.com/rkwitt/pyfsa/blob/master/core/fsa.py
+# Reference for GMM and Kmeans with a bit of modification: https://github.com/rkwitt/pyfsa/blob/master/core/fsa.py
 
-def estimate_gm(X,components=math.floor(math.sqrt(len(X))),seed=None):
+def estimate_gm(X,components=1000,seed=None):
     """Estimate a Gaussian mixture model.
     Note: Uses diagonal covariance matrices.
     Parameters
@@ -52,8 +52,8 @@ def estimate_gm(X,components=math.floor(math.sqrt(len(X))),seed=None):
     gm_obj.fit(X)
     return gm_obj
 
-
-def learn_codebook(X, codebook_size=math.floor(math.sqrt(len(X))), seed=None):
+# Choose default codebook size and keep it the same for both GMM and K-means method of encoding
+def learn_codebook(X, codebook_size=1000, seed=None):
     """Learn a codebook.
     Run K-Means clustering to compute a codebook. K-Means
     is initialized by K-Means++, uses a max. of 500 iter-
@@ -173,13 +173,20 @@ daisy_arr=np.asarray(daisy_list)
 # Training videos only are used 
 # Training videos should be splitted as the size of datasets grows
 # For now only daisy features are used 
-daisy_arr_bovw_training=daisy_arr
+daisy_bovw_training=daisy_arr
 
-N_kmeans=7
+# first method of bovw calculation: kmeans
+codebook_size=math.floor(math.sqrt(len(daisy_bovw_training)))
+codebook=learn_codebook(daisy_bovw_training, codebook_size)
+kmeans_bovw=bow(daisy_arr, codebook)
+
+# first method of bovw calculation: GMM (fisher vector)
+gm_obj=estimate_gm(X,codebook_size)
+
+
 bovw_kmeans=[]
-kmeans = KMeans(n_clusters=N_kmeans, random_state=0).fit(daisy_arr_bovw_training)
 kmeans.fit(daisy_arr)
-bovw_cookbooks = kmeans.cluster_centers_.squeeze()
+bovw_cookbooks =  
 kmeans_labels = kmeans.predict(daisy_arr)
 
 
