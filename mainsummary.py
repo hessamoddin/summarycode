@@ -6,6 +6,7 @@ import sklearn.mixture.gmm as gm
 import numpy as np
 import scipy.io as matreader
 import pprint
+import logging
 from os import listdir
 from os.path import isfile, join
 import cv2
@@ -17,6 +18,7 @@ from skimage.color import rgb2gray
 from skimage.feature import daisy
 import matplotlib.cbook as cbook
 from sklearn.cluster import KMeans
+import math
 
 # Reference: https://github.com/rkwitt/pyfsa/blob/master/core/fsa.py
 
