@@ -123,7 +123,7 @@ def bow(X, cb):
 ############ Extract frame features ##############
 # https://github.com/jacobgil/pyfishervector/blob/master/fisher.py
 
-def dictionary(descriptors, N):
+def gmm_dictionary(descriptors, N):
     em = cv2.ml.EM_create()
     em.setClustersNumber(N)
     em.trainEM(descriptors)
