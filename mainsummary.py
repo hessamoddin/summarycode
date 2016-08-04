@@ -256,7 +256,6 @@ gm_obj=estimate_gm(daisy_bovw_training,codebook_size)
 
 bovw_kmeans=[]
 kmeans.fit(daisy_arr)
-bovw_cookbooks =  
 kmeans_labels = kmeans.predict(daisy_arr)
 
 
