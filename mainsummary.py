@@ -21,7 +21,7 @@ import matplotlib.cbook as cbook
 from sklearn.cluster import KMeans
 import math
 
-# # Reference for GMM and Kmeans with a bit of modification: https://github.com/rkwitt/pyfsa/blob/master/core/fsa.py
+ # # Reference for GMM and Kmeans with a bit of modification: https://github.com/rkwitt/pyfsa/blob/master/core/fsa.py
 # Choose default codebook size and keep it the same for both GMM and K-means method of encoding
 def learn_codebook(X, codebook_size=1000, seed=None):
     """Learn a codebook.
@@ -79,47 +79,10 @@ def bow(X, cb):
     B = range(0,n+1)
     return np.histogram(assignments,bins=B,density=True)[0]
 
-# Reference for GMM and Kmeans with a bit of modification: https://github.com/rkwitt/pyfsa/blob/master/core/fsa.py
-
-def estimate_gm(X,components=1000,seed=None):
-    """Estimate a Gaussian mixture model.
-    Note: Uses diagonal covariance matrices.
-    Parameters
-    ----------
-    X : numpy matrix, shape (N,D)
-        Matrix of data samples (i-th row is i-th sample vector).
-    c : int (default : 3)
-        Number of desired mixture components.
-    seed : int (default : None)
-        Seed for the random number generator.
-    Returns
-    -------
-    gm_obj : sklearn.mixture.gmm object
-        Estimated GMM.
-    """
-
-    logger = logging.getLogger()
-
-    n, d = X.shape
-    logger.info("Estimating %d-comp. GMM from (%d x %d) ..." %
-                (components, n, d))
-
-    gm_obj = gm.GMM (n_components=components,
-                     covariance_type='diag',
-                     random_state=seed)
-
-    gm_obj.fit(X)   
-    np.random.seed(1)
-  
-    
-    return  np.float32(gm_obj.means_), np.float32(gm_obj.covars_), np.float32(gm_obj.weights_)
-
-
 ############ Extract frame features ##############
 # https://github.com/jacobgil/pyfishervector/blob/master/fisher.py
 
-  
-    
+     
 def likelihood_moment(x, ytk, moment):	
 	x_moment = np.power(np.float32(x), moment) if moment > 0 else np.float32([1])
 	return x_moment * ytk
