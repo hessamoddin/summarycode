@@ -82,6 +82,40 @@ def bow(X, cb):
 ############ Extract frame features ##############
 # https://github.com/jacobgil/pyfishervector/blob/master/fisher.py
 
+def estimate_gm(X,components=1000,seed=None):
+    """Estimate a Gaussian mixture model.
+    Note: Uses diagonal covariance matrices.
+    Parameters
+    ----------
+    X : numpy matrix, shape (N,D)
+        Matrix of data samples (i-th row is i-th sample vector).
+    c : int (default : 3)
+        Number of desired mixture components.
+    seed : int (default : None)
+        Seed for the random number generator.
+    Returns
+    -------
+    gm_obj : sklearn.mixture.gmm object
+        Estimated GMM.
+    """
+
+    logger = logging.getLogger()
+
+    n, d = X.shape
+    logger.info("Estimating %d-comp. GMM from (%d x %d) ..." %
+                (components, n, d))
+
+    gm_obj = gm.GMM (n_components=components,
+                     covariance_type='diag',
+                     random_state=seed)
+
+    gm_obj.fit(X)   
+    np.random.seed(1)
+  
+    
+    return  np.float32(gm_obj.means_), np.float32(gm_obj.covars_), np.float32(gm_obj.weights_)
+
+
      
 def likelihood_moment(x, ytk, moment):	
 	x_moment = np.power(np.float32(x), moment) if moment > 0 else np.float32([1])
@@ -202,7 +236,8 @@ codebook=learn_codebook(daisy_bovw_training, codebook_size)
 kmeans_bovw=bow(daisy_arr, codebook)
 
 # first method of bovw calculation: GMM (fisher vector)
-gm_obj=estimate_gm(daisy_bovw_training,codebook_size)
+m,c,w=estimate_gm(daisy_bovw_training,codebook_size)
+m,c,w=estimate_gm(X,components=2)
 
 
 bovw_kmeans=[]
