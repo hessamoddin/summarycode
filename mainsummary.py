@@ -109,29 +109,16 @@ def estimate_gm(X,components=1000,seed=None):
                      random_state=seed)
 
     gm_obj.fit(X)   
-  #  np.random.seed(1)
-   # g = mixture.GMM(n_components=components)
-#    g.fit(X)
- #   np.round(g.weights_, 2)    
-  #  np.round(g.means_, 2)
-   # np.round(g.covars_, 2) 
-    #g.predict(X)
-#    np.round(g.score(X), 2)
-
-    return gm_obj
+    np.random.seed(1)
+  
+    
+    return  np.float32(gm_obj.means_), np.float32(gm_obj.covars_), np.float32(gm_obj.weights_)
 
 
 ############ Extract frame features ##############
 # https://github.com/jacobgil/pyfishervector/blob/master/fisher.py
 
-def gmm_dictionary(descriptors, N):
-    em = cv2.ml.EM_create()
-    em.setClustersNumber(N)
-    em.trainEM(descriptors)
-    means = em.getMeans()
-    covs = em.getCovs()
-    weights = em.getWeights()
-    return np.float32(means), np.float32(covs), np.float32(weights)
+  
     
 def likelihood_moment(x, ytk, moment):	
 	x_moment = np.power(np.float32(x), moment) if moment > 0 else np.float32([1])
