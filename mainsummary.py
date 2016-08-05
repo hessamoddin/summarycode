@@ -10,7 +10,6 @@ import pprint
 import logging
 from os import listdir
 from os.path import isfile, join
-import cv2
 import tflearn
 import pylab
 import imageio
