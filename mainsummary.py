@@ -7,6 +7,7 @@ from tempfile import TemporaryFile
 from sklearn import mixture
 import numpy as np
 import scipy.io as matreader
+from scipy.stats import multivariate_normal
 import pprint
 import logging
 #import cv2
@@ -81,7 +82,8 @@ def bow(X, cb):
     return np.histogram(assignments,bins=B,density=True)[0]
 
 ############ Extract frame features ##############
-# https://github.com/jacobgil/pyfishervector/blob/master/fisher.py
+
+#source: https://github.com/rkwitt/pyfsa/blob/master/core/fsa.py
 
 def estimate_gm(X,components=1000,seed=None):
     """Estimate a Gaussian mixture model.
@@ -241,8 +243,7 @@ kmeans_bovw=bow(daisy_arr, codebook)
 
 # first method of bovw calculation: GMM (fisher vector)
 m,c,w=estimate_gm(daisy_bovw_training,codebook_size)
-m,c,w=estimate_gm(X,components=2)
-
+ 
 
 bovw_kmeans=[]
 kmeans.fit(daisy_arr)
