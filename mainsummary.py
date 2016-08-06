@@ -219,8 +219,9 @@ for i in xrange(batch_size):
         print(j)
         current_frame_id=video_sequence_frameid[i][j]
         if len(video_sequence_frameid[i])==num_LSTMs:
-            daisy_1D,surf_descs,sift_descs=current_feature=Feature_Extractor_Fn(vid,current_frame_id)
-            daisy_list.append(daisy_1D)
+        #    daisy_1D,surf_descs,sift_descs=current_feature=Feature_Extractor_Fn(vid,current_frame_id)
+        	daisy_1D=current_feature=Feature_Extractor_Fn(vid,current_frame_id)
+        	daisy_list.append(daisy_1D)
  
 daisy_arr=np.asarray(daisy_list)
 ############ Bovw Construction ##############
