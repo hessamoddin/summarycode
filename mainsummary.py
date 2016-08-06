@@ -3,6 +3,7 @@
 ############ Load Libraries ##############
 from __future__ import division, print_function, absolute_import
 import sklearn.mixture.gmm as gm
+from tempfile import TemporaryFile
 from sklearn import mixture
 import numpy as np
 import scipy.io as matreader
@@ -224,6 +225,8 @@ for i in xrange(batch_size):
         	daisy_list.append(daisy_1D)
  
 daisy_arr=np.asarray(daisy_list)
+outfile = TemporaryFile()
+np.save(outfile, daisy_arr)
 ############ Bovw Construction ##############
 
 # Training videos only are used 
