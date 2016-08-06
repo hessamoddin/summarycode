@@ -8,7 +8,7 @@ import numpy as np
 import scipy.io as matreader
 import pprint
 import logging
-import cv2
+#import cv2
 from os import listdir
 from os.path import isfile, join
 import tflearn
