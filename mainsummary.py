@@ -126,11 +126,12 @@ def likelihood_moment(x, ytk, moment):
 	
 def likelihood_statistics(samples, means, covs, weights):
 	gaussians, s0, s1,s2 = {}, {}, {}, {}
-	samples = zip(range(0, len(samples)), samples)
+#	samples = zip(range(0, len(samples)), samples)
 	
 	g = [multivariate_normal(mean=means[k], cov=covs[k]) for k in range(0, len(weights)) ]
 	for index, x in samples:
-		gaussians[index] = np.array([g_k.pdf(x) for g_k in g])
+		for k in range(0, len(weights)):
+			gaussians[index,k] = np.array([g[k].pdf(x,means[k],covs[k]) )
 
 	for k in range(0, len(weights)):
 		s0[k], s1[k], s2[k] = 0, 0, 0
