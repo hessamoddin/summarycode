@@ -210,9 +210,11 @@ starting_frame=1
 ending_frame=num_frames
 step=80  #sampling step
 num_LSTMs=10  #number of LSTMs per video
-sampling_id=np.arange(starting_frame,ending_frame,step) 
-video_sequence_frameid=list(chunks(sampling_id, num_LSTMs)) #batch of video sequence of frame ids
+sampled_frame_id=np.arange(starting_frame,ending_frame,step) 
+video_sequence_frameid=list(chunks(sampled_frame_id, num_LSTMs)) #batch of video sequence of frame ids
 batch_size=len(video_sequence_frameid)  # batch size: number of rows of sequential data to be fed to LSTMs
+ 
+#Should be zero-padded for same length 
  
  
 daisy_list=[]
@@ -238,7 +240,7 @@ np.save(outfile, daisy_arr)
 daisy_bovw_training=daisy_arr
 
 # first method of bovw calculation: kmeans
-codebook_size=int(math.floor(math.sqrt(len(daisy_bovw_training))))
+codebook_size=int(math.floor(math.sqrt((daisy_bovw_training))))
 codebook=learn_codebook(daisy_bovw_training, codebook_size)
 kmeans_bovw=bow(daisy_arr, codebook)
 
@@ -263,5 +265,16 @@ summary_score=loaded_summary['gt_score']
 
 # LSTM input size: Batch size (num sequesnces/rows) [if None, it can be changed] X 
 #   Sequence length X Dimension of each member of sequence
+
+net = tflearn.input_data(shape=[None, num_LSTMs, codebook_size])
+net = tflearn.lstm(net, 32, return_seq=True)
+net = tflearn.lstm(net, 32)
+net = tflearn.fully_connected(net, 10, activation='softmax')
+net = tflearn.regression(net, optimizer='adam',
+                         loss='categorical_crossentropy', name="output1")
+model = tflearn.DNN(net, tensorboard_verbose=2)
+model.fit(X, Y, n_epoch=1, validation_set=0.1, show_metric=True,
+          snapshot_step=100)
+
 
  
