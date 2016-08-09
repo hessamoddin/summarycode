@@ -128,7 +128,7 @@ def likelihood_statistics(samples, means, covs, weights):
 	gaussians, s0, s1,s2 = {}, {}, {}, {}
 #	samples = zip(range(0, len(samples)), samples)
 	
-	g = [multivariate_normal(mean=means[k], cov=covs[k]) for k in range(0, len(weights)) ]
+	g = [multivariate_normal(mean=means[k], cov=covs[k]) for k in range(0, len(weights))]
 	for index, x in samples:
 		for k in range(0, len(weights)):
 			gaussians[index,k] = np.array([g[k].pdf(x,means[k],covs[k]) )
