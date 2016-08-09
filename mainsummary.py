@@ -246,10 +246,7 @@ kmeans_bovw=bow(daisy_arr, codebook)
 m,c,w=estimate_gm(daisy_bovw_training,codebook_size)
  
 
-bovw_kmeans=[]
-kmeans.fit(daisy_arr)
-kmeans_labels = kmeans.predict(daisy_arr)
-
+ 
 
 
 ############ Load Summary File ##############
