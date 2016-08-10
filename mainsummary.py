@@ -211,7 +211,7 @@ ending_frame=num_frames
 step=80  #sampling step
 num_LSTMs=10  #number of LSTMs per video
 sampled_frame_id=np.arange(starting_frame,ending_frame,step) 
-video_sequence_frameid=list(chunks(sampled_frame_id[1:int(len(sampled_frame_id)/num_LSTMs)*num_LSTMs], num_LSTMs))  #batch of video sequence of frame ids
+video_sequence_frameid=list(chunks(sampled_frame_id[0:int(len(sampled_frame_id)/num_LSTMs)*num_LSTMs], num_LSTMs))  #batch of video sequence of frame ids
 
 batch_size=len(video_sequence_frameid)  # batch size: number of rows of sequential data to be fed to LSTMs
  
