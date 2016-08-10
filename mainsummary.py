@@ -241,7 +241,7 @@ np.save(outfile, daisy_arr)
 daisy_bovw_training=daisy_arr
 
 # first method of bovw calculation: kmeans
-codebook_size=int(math.floor(math.sqrt((daisy_bovw_training))))
+codebook_size=int(math.floor(math.sqrt((daisy_bovw_training.shape[0]))))
 codebook=learn_codebook(daisy_bovw_training, codebook_size)
 kmeans_bovw=bow(daisy_arr, codebook)
 
