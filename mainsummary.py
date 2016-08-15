@@ -197,8 +197,17 @@ def chunks(l, n):
     for i in range(0, len(l), n):
         yield l[i:i+n]
         
-        
+############################################
+########### END of Functions ###############
+############################################
+############################################
+
 ############ Load Video ##############
+mypath='/home/hessam/code/data/videos/'
+onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
+
+for videofilename in onlyfiles:
+	print(videofilename)
 videofilename='/home/hessam/code/data/videos/Air_Force_One.mp4'
 vid = imageio.get_reader(videofilename,  'ffmpeg')
 # number of frames in video
@@ -245,11 +254,14 @@ codebook_size=int(math.floor(math.sqrt((daisy_bovw_training.shape[0]))))
 codebook=learn_codebook(daisy_bovw_training, codebook_size)
 kmeans_bovw=bow(daisy_arr, codebook)
 
+
 # first method of bovw calculation: GMM (fisher vector)
 m,c,w=estimate_gm(daisy_bovw_training,codebook_size)
  
 
  
+
+numpy.savetxt("foo.csv", kmeans_bovw, delimiter=",")
 
 
 ############ Load Summary File ##############
