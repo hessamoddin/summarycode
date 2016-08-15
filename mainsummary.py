@@ -13,6 +13,7 @@ import logging
 #import cv2
 from os import listdir
 from os.path import isfile, join
+from os import path
 import tflearn
 import pylab
 import imageio
@@ -203,65 +204,64 @@ def chunks(l, n):
 ############################################
 
 ############ Load Video ##############
-mypath='/home/hessam/code/data/videos/'
-onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
+datasetpath='/home/hessam/code/data/videos/'
+onlyfiles = [f for f in listdir(datasetpath) if isfile(join(datasetpath, f))]
 
 for videofilename in onlyfiles:
 	print(videofilename)
-videofilename='/home/hessam/code/data/videos/Air_Force_One.mp4'
-vid = imageio.get_reader(videofilename,  'ffmpeg')
-# number of frames in video
-num_frames=vid._meta['nframes']
+	videofilename=path.join(datasetpath,videofilename)
+	vid = imageio.get_reader(videofilename,  'ffmpeg')
+		# number of frames in video
+	num_frames=vid._meta['nframes']
 
 ############ Extract frame features ##############
 #Subsample the video
-starting_frame=1
-ending_frame=num_frames
-step=80  #sampling step
-num_LSTMs=10  #number of LSTMs per video
-sampled_frame_id=np.arange(starting_frame,ending_frame,step) 
-video_sequence_frameid=list(chunks(sampled_frame_id[0:int(len(sampled_frame_id)/num_LSTMs)*num_LSTMs], num_LSTMs))  #batch of video sequence of frame ids
-
-batch_size=len(video_sequence_frameid)  # batch size: number of rows of sequential data to be fed to LSTMs
+	starting_frame=1
+	ending_frame=num_frames
+	step=80  #sampling step
+	num_LSTMs=10  #number of LSTMs per video
+	sampled_frame_id=np.arange(starting_frame,ending_frame,step) 
+	video_sequence_frameid=list(chunks(sampled_frame_id[0:int(len(sampled_frame_id)/num_LSTMs)*num_LSTMs], num_LSTMs))  #batch of video sequence of frame ids
+	batch_size=len(video_sequence_frameid)  # batch size: number of rows of sequential data to be fed to LSTMs
  
 #Should be zero-padded for same length 
  
  
-daisy_list=[]
+	daisy_list=[]
  
 # Feature extraction
-for i in xrange(batch_size):
-    for j in xrange(num_LSTMs):
-        print(j)
-        current_frame_id=video_sequence_frameid[i][j]
-        if len(video_sequence_frameid[i])==num_LSTMs:
+	for i in xrange(batch_size):
+		for j in xrange(num_LSTMs):
+			print(j)
+		 	current_frame_id=video_sequence_frameid[i][j]
+		 	if len(video_sequence_frameid[i])==num_LSTMs:
         #    daisy_1D,surf_descs,sift_descs=current_feature=Feature_Extractor_Fn(vid,current_frame_id)
-        	daisy_1D=current_feature=Feature_Extractor_Fn(vid,current_frame_id)
-        	daisy_list.append(daisy_1D)
+			 	daisy_1D=current_feature=Feature_Extractor_Fn(vid,current_frame_id)
+        			daisy_list.append(daisy_1D)
  
-daisy_arr=np.asarray(daisy_list)
-outfile = TemporaryFile()
-np.save(outfile, daisy_arr)
+	daisy_arr=np.asarray(daisy_list)
+	outfile = TemporaryFile()
+	np.save(outfile, daisy_arr)
 ############ Bovw Construction ##############
 
 # Training videos only are used 
 # Training videos should be splitted as the size of datasets grows
 # For now only daisy features are used 
-daisy_bovw_training=daisy_arr
+	daisy_bovw_training=daisy_arr
 
 # first method of bovw calculation: kmeans
-codebook_size=int(math.floor(math.sqrt((daisy_bovw_training.shape[0]))))
-codebook=learn_codebook(daisy_bovw_training, codebook_size)
-kmeans_bovw=bow(daisy_arr, codebook)
+	codebook_size=int(math.floor(math.sqrt((daisy_bovw_training.shape[0]))))
+	codebook=learn_codebook(daisy_bovw_training, codebook_size)
+	kmeans_bovw=bow(daisy_arr, codebook)
 
 
 # first method of bovw calculation: GMM (fisher vector)
-m,c,w=estimate_gm(daisy_bovw_training,codebook_size)
+	m,c,w=estimate_gm(daisy_bovw_training,codebook_size)
  
 
  
 
-numpy.savetxt("foo.csv", kmeans_bovw, delimiter=",")
+	numpy.savetxt("foo.csv", kmeans_bovw, delimiter=",")
 
 
 ############ Load Summary File ##############
