@@ -241,7 +241,6 @@ for videofilename in onlyfiles:
  
 	daisy_arr=np.asarray(daisy_list)
 	outfile = TemporaryFile()
-	np.save(outfile, daisy_arr)
 ############ Bovw Construction ##############
 
 # Training videos only are used 
@@ -257,13 +256,11 @@ for videofilename in onlyfiles:
 
 # first method of bovw calculation: GMM (fisher vector)
 	m,c,w=estimate_gm(daisy_bovw_training,codebook_size)
- 
-
- 
-
-	numpy.savetxt("foo.csv", kmeans_bovw, delimiter=",")
 
 
+	np.savetxt(path.splitext(videofilename)[0]+'.csv', kmeans_bovw, delimiter=",")
+
+	print(path.splitext(videofilename)[0]+'.csv')
 ############ Load Summary File ##############
 data_path='/home/hessam/code/data/GT'
 onlyfiles = [f for f in listdir(data_path) if isfile(join(data_path, f))]
