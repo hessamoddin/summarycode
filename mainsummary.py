@@ -197,28 +197,23 @@ def chunks(l, n):
     """Yield successive n-sized chunks from l."""
     for i in range(0, len(l), n):
         yield l[i:i+n]
-        
-############################################
-########### END of Functions ###############
-############################################
-############################################
 
-############ Load Video ##############
-datasetpath='/home/hessam/code/data/videos/'
-onlyfiles = [f for f in listdir(datasetpath) if isfile(join(datasetpath, f))]
 
-for videofilename in onlyfiles:
-	print(videofilename)
-	videofilename=path.join(datasetpath,videofilename)
+
+
+
+
+
+def Video_Feature_Extractor_Daisy(videofilename,step=1,num_LSTMs=10):
 	vid = imageio.get_reader(videofilename,  'ffmpeg')
-		# number of frames in video
+# number of frames in video
 	num_frames=vid._meta['nframes']
 
 ############ Extract frame features ##############
 #Subsample the video
 	starting_frame=1
 	ending_frame=num_frames
-	step=80  #sampling step
+	step=1  #sampling step
 	num_LSTMs=10  #number of LSTMs per video
 	sampled_frame_id=np.arange(starting_frame,ending_frame,step) 
 	video_sequence_frameid=list(chunks(sampled_frame_id[0:int(len(sampled_frame_id)/num_LSTMs)*num_LSTMs], num_LSTMs))  #batch of video sequence of frame ids
@@ -226,26 +221,41 @@ for videofilename in onlyfiles:
  
 #Should be zero-padded for same length 
  
- 
 	daisy_list=[]
  
 # Feature extraction
 	for i in xrange(batch_size):
 		for j in xrange(num_LSTMs):
-			print(j)
-		 	current_frame_id=video_sequence_frameid[i][j]
-		 	if len(video_sequence_frameid[i])==num_LSTMs:
+	 		current_frame_id=video_sequence_frameid[i][j]
+	 		if len(video_sequence_frameid[i])==num_LSTMs:
         #    daisy_1D,surf_descs,sift_descs=current_feature=Feature_Extractor_Fn(vid,current_frame_id)
-			 	daisy_1D=current_feature=Feature_Extractor_Fn(vid,current_frame_id)
-        			daisy_list.append(daisy_1D)
+		 		daisy_1D=current_feature=Feature_Extractor_Fn(vid,current_frame_id)
+       				daisy_list.append(daisy_1D)
  
 	daisy_arr=np.asarray(daisy_list)
-	outfile = TemporaryFile()
+	return daisy_arr
 ############ Bovw Construction ##############
 
 # Training videos only are used 
 # Training videos should be splitted as the size of datasets grows
 # For now only daisy features are used 
+	
+ 
+        
+############################################
+########### END of Functions ###############
+############################################
+############################################
+
+############ Load Video ##############
+datasetpath='/home/hessam/code/data/'
+onlyfiles = [f for f in listdir(datasetpath) if isfile(join(datasetpath, f))]
+daisy_list_total=[]
+
+for videofilename in onlyfiles:
+	print(videofilename)
+	videofilename=path.join(datasetpath,videofilename)
+	daisy_arr=Video_Feature_Extractor_Daisy(videofilename,step=1,num_LSTMs=10)
 	daisy_bovw_training=daisy_arr
 
 # first method of bovw calculation: kmeans
@@ -259,8 +269,9 @@ for videofilename in onlyfiles:
 
 
 	np.savetxt(path.splitext(videofilename)[0]+'.csv', kmeans_bovw, delimiter=",")
-
+	daisy_list_total.append(daisy_list)
 	print(path.splitext(videofilename)[0]+'.csv')
+	print(len(daisy_list_total))
 ############ Load Summary File ##############
 data_path='/home/hessam/code/data/GT'
 onlyfiles = [f for f in listdir(data_path) if isfile(join(data_path, f))]
