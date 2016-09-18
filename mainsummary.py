@@ -248,7 +248,7 @@ def Video_Feature_Extractor_Daisy(videofilename,step=1,num_LSTMs=10):
 ############################################
 
 ############ Load Video ##############
-datasetpath='/home/hessam/code/data/'
+datasetpath='/home/hessam/code/Tour20/Tour20-Videos/BF/'
 onlyfiles = [f for f in listdir(datasetpath) if isfile(join(datasetpath, f))]
 daisy_list_total=[]
 
