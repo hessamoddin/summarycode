@@ -172,7 +172,7 @@ def fisher_vector(samples, means, covs, w):
 	
 
 ############ Extract frame features ##############
-def Feature_Extractor_Fn(vid,frame_no,new_shape=(120,180),step=50, radius=20):
+def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(120,180),step=50, radius=20):
     if frame_no<num_frames: 
         frame = vid.get_data(frame_no)  
         frame_resized=resize(frame, new_shape)
@@ -229,7 +229,7 @@ def Video_Feature_Extractor_Daisy(videofilename,step=1,num_LSTMs=10):
 	 		current_frame_id=video_sequence_frameid[i][j]
 	 		if len(video_sequence_frameid[i])==num_LSTMs:
         #    daisy_1D,surf_descs,sift_descs=current_feature=Feature_Extractor_Fn(vid,current_frame_id)
-		 		daisy_1D=current_feature=Feature_Extractor_Fn(vid,current_frame_id)
+		 		daisy_1D=current_feature=Feature_Extractor_Fn(vid,num_frames,current_frame_id)
        				daisy_list.append(daisy_1D)
  
 	daisy_arr=np.asarray(daisy_list)
