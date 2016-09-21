@@ -213,7 +213,6 @@ def Video_Feature_Extractor_Daisy(videofilename,step=1,num_LSTMs=10):
 #Subsample the video
 	starting_frame=1
 	ending_frame=num_frames
-	step=1  #sampling step
 	num_LSTMs=10  #number of LSTMs per video
 	sampled_frame_id=np.arange(starting_frame,ending_frame,step) 
 	video_sequence_frameid=list(chunks(sampled_frame_id[0:int(len(sampled_frame_id)/num_LSTMs)*num_LSTMs], num_LSTMs))  #batch of video sequence of frame ids
@@ -248,7 +247,7 @@ def Video_Feature_Extractor_Daisy(videofilename,step=1,num_LSTMs=10):
 ############################################
 
 ############ Load Video ##############
-datasetpath='/home/hessam/code/Tour20/Tour20-Videos/BF/'
+datasetpath='/home/hessam/code/Tour20/Tour20-Videos/AW/'
 onlyfiles = [f for f in listdir(datasetpath) if isfile(join(datasetpath, f))]
 daisy_list_total=[]
 
