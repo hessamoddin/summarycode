@@ -224,6 +224,7 @@ def Video_Feature_Extractor_Daisy(videofilename,step=1,num_LSTMs=10):
  
 # Feature extraction
 	for i in xrange(batch_size):
+		print(100*i/batch_size)
 		for j in xrange(num_LSTMs):
 	 		current_frame_id=video_sequence_frameid[i][j]
 	 		if len(video_sequence_frameid[i])==num_LSTMs:
