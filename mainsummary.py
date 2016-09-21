@@ -255,7 +255,7 @@ daisy_list_total=[]
 for videofilename in onlyfiles:
 	print(videofilename)
 	videofilename=path.join(datasetpath,videofilename)
-	daisy_arr=Video_Feature_Extractor_Daisy(videofilename,step=1,num_LSTMs=10)
+	daisy_arr=Video_Feature_Extractor_Daisy(videofilename,step=10,num_LSTMs=10)
 	daisy_bovw_training=daisy_arr
 
 # first method of bovw calculation: kmeans
