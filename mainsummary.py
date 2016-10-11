@@ -269,7 +269,7 @@ for videofilename in onlyfiles:
 
 
 	np.savetxt(path.splitext(videofilename)[0]+'.csv', kmeans_bovw, delimiter=",")
-	daisy_list_total.append(daisy_list)
+	daisy_list_total.append(daisy_arr)
 	print(path.splitext(videofilename)[0]+'.csv')
 	print(len(daisy_list_total))
 ############ Load Summary File ##############
