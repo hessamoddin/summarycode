@@ -12,7 +12,7 @@ import pprint
 import logging
 #import cv2
 from os import listdir
-from os.path import isfile, join
+from os.path import isfile, join, splitext
 from os import path
 import tflearn
 import pylab
@@ -253,25 +253,26 @@ onlyfiles = [f for f in listdir(datasetpath) if isfile(join(datasetpath, f))]
 daisy_list_total=[]
 
 for videofilename in onlyfiles:
-	print(videofilename)
-	videofilename=path.join(datasetpath,videofilename)
-	daisy_arr=Video_Feature_Extractor_Daisy(videofilename,step=10,num_LSTMs=10)
-	daisy_bovw_training=daisy_arr
+	if  (splitext(videofilename)[1])!='.csv':
+		print(videofilename)
+		videofilename=path.join(datasetpath,videofilename)
+		daisy_arr=Video_Feature_Extractor_Daisy(videofilename,step=10,num_LSTMs=10)
+		daisy_bovw_training=daisy_arr
 
-# first method of bovw calculation: kmeans
-	codebook_size=int(math.floor(math.sqrt((daisy_bovw_training.shape[0]))))
-	codebook=learn_codebook(daisy_bovw_training, codebook_size)
-	kmeans_bovw=bow(daisy_arr, codebook)
-
-
-# first method of bovw calculation: GMM (fisher vector)
-	m,c,w=estimate_gm(daisy_bovw_training,codebook_size)
+		# first method of bovw calculation: kmeans
+		codebook_size=int(math.floor(math.sqrt((daisy_bovw_training.shape[0]))))
+		codebook=learn_codebook(daisy_bovw_training, codebook_size)
+		kmeans_bovw=bow(daisy_arr, codebook)
 
 
-	np.savetxt(path.splitext(videofilename)[0]+'.csv', kmeans_bovw, delimiter=",")
-	daisy_list_total.append(daisy_arr)
-	print(path.splitext(videofilename)[0]+'.csv')
-	print(len(daisy_list_total))
+		# first method of bovw calculation: GMM (fisher vector)
+		m,c,w=estimate_gm(daisy_bovw_training,codebook_size)
+
+
+		np.savetxt(path.splitext(videofilename)[0]+'.csv', kmeans_bovw, delimiter=",")
+		daisy_list_total.append(daisy_arr)
+		print(path.splitext(videofilename)[0]+'.csv')
+		print(len(daisy_list_total))
 ############ Load Summary File ##############
 data_path='/home/hessam/code/data/GT'
 onlyfiles = [f for f in listdir(data_path) if isfile(join(data_path, f))]
