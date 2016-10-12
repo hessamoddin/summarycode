@@ -252,6 +252,18 @@ datasetpath='/home/hessam/code/Tour20/Tour20-Videos/AW/'
 onlyfiles = [f for f in listdir(datasetpath) if isfile(join(datasetpath, f))]
 daisy_list_total=[]
 
+############ Accumulate features ##############
+
+for videofilename in onlyfiles:
+	if  (splitext(videofilename)[1])!='.csv':
+		print(videofilename)
+		videofilename=path.join(datasetpath,videofilename)
+		daisy_arr=Video_Feature_Extractor_Daisy(videofilename,step=10,num_LSTMs=10)
+		daisy_list_total.append(daisy_arr)
+		print(path.splitext(videofilename)[0]+'.csv')
+		print(len(daisy_list_total))
+		
+############ Load Summary File ##############
 for videofilename in onlyfiles:
 	if  (splitext(videofilename)[1])!='.csv':
 		print(videofilename)
