@@ -49,17 +49,18 @@ from random import sample
 import csv
 import cPickle as pickle
 
+
 # parameters:
-bovw_size=200
-num_LSTMs=8
+bovw_size=50
+num_LSTMs=10
 train_frac=0.5
 LSTM_overlap=0.25
 longest_allowed_frames=500
 
 
-batch_size = 1
+batch_size = 2
 nb_epochs = 200
-hidden_units = 100
+hidden_units = 256
 
 learning_rate = 1e-6
 clip_norm = 1.0
@@ -364,8 +365,7 @@ bag_testing=np.asarray(testing_list)
 
 # first method of bovw calculation: kmeans
 kmeans_codebook_size=int(math.sqrt(math.floor(len(training_list))))
-
- 
+  
 
 
 
