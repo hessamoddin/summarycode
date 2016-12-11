@@ -11,7 +11,6 @@ Created on Sat Nov 26 23:09:19 2016
 from __future__ import division, print_function, absolute_import
 from __future__ import print_function
 
-from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers import Dense, Activation
 from keras.layers import SimpleRNN
@@ -58,7 +57,7 @@ LSTM_overlap=0.25
 longest_allowed_frames=500
 
 
-batch_size = 2
+batch_size = 1
 nb_epochs = 200
 hidden_units = 256
 
@@ -365,8 +364,7 @@ bag_testing=np.asarray(testing_list)
 
 # first method of bovw calculation: kmeans
 kmeans_codebook_size=int(math.sqrt(math.floor(len(training_list))))
-  
-
+ 
 
 
 # Final codebook created by Kmeans
