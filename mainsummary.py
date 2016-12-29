@@ -47,10 +47,11 @@ import random
 from random import sample
 import csv
 import cPickle as pickle
+from glove import Corpus, Glove
 
 
 # parameters:
-bovw_size=50
+bovw_size=30
 num_LSTMs=10
 train_frac=0.5
 LSTM_overlap=0.25
@@ -59,7 +60,7 @@ longest_allowed_frames=500
 
 batch_size = 1
 nb_epochs = 200
-hidden_units = 256
+hidden_units = 30
 
 learning_rate = 1e-6
 clip_norm = 1.0
@@ -284,7 +285,7 @@ parent_dir = os.path.split(cwd)[0]
 
 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos2/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -531,3 +532,94 @@ scores = model.evaluate(X_raw_test, Y_test, verbose=0)
 print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
  
+ 
+ 
+ 
+ 
+ 
+
+
+bovw_shape=(3,5)
+bovw_bins = np.random.randint(9,13, size=bovw_shape)
+bovw_weights = np.random.randint(2, size=bovw_shape)
+ 
+
+
+print('Bovw bins')
+print(bovw_bins)
+print('Bovw weights')
+print(bovw_weights)
+ 
+
+
+
+
+dictionary = {}
+rows = []
+cols = []
+data = array.array('f')
+ 
+k=0 
+#print(bovw_bins)
+
+for frame in bovw_bins:
+        for i, first_word in enumerate(frame):
+            first_word_idx = dictionary.setdefault(first_word,
+                                                   len(dictionary))
+            w1=bovw_weights[k,i]                                    
+            for j, second_word in enumerate(frame):
+                second_word_idx = dictionary.setdefault(second_word,
+                                                        len(dictionary))
+                w2=bovw_weights[k,j]            
+                distance = 1
+                w=w1*w2
+
+                if first_word_idx == second_word_idx:
+                    pass
+                elif first_word_idx < second_word_idx:
+                    rows.append(first_word_idx)
+
+                    cols.append(second_word_idx)
+                    data.append(np.double(w*np.double(1.0) / distance))
+                else:
+                    rows.append(second_word_idx)
+                    cols.append(first_word_idx)
+                    data.append(np.double(w*np.double(1.0) / distance))
+        k=k+1
+     
+                    
+ 
+
+x=sp.coo_matrix((data, (rows, cols)),
+                         shape=(len(dictionary),
+                                len(dictionary)),
+                         dtype=np.double).tocsr().tocoo()      
+print(dictionary)           
+dic_keys=dictionary.keys()
+dic_values=dictionary.values()
+
+              
+xarr=x.toarray()                         
+xarr/=np.amax(xarr)
+print("coocurancem matrix")
+print(xarr)
+xsparse=sp.coo_matrix(xarr)   
+
+glove_model = Glove(no_components=5, learning_rate=0.05)
+glove_model.fit(xsparse,
+                    epochs=500,
+                    no_threads=2)
+
+
+new_word_representation=glove_model.word_vectors
+print("New word representation")
+print(new_word_representation)
+
+print("*** Query ***")
+query=10
+query_pos=dic_values[dic_keys.index(query)]
+
+target=12
+target_pos=dic_values[dic_keys.index(target)]
+sim=np.dot(glove_model.word_vectors[query_pos],glove_model.word_vectors[target_pos])
+print(sim) 
