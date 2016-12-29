@@ -64,15 +64,14 @@ def generate_training_corpus(num_sentences,
                rs.randint(0, vocabulary_size, sentence_size)]
 
 
-def build_coocurrence_matrix(sentences):
+def build_coocurrence_matrix(sentences,window=10):
 
     dictionary = {}
     rows = []
     cols = []
     data = array.array('f')
 
-    window = 10
-
+ 
     for sentence in sentences:
         for i, first_word in enumerate(sentence):
             first_word_idx = dictionary.setdefault(first_word,
@@ -89,17 +88,17 @@ def build_coocurrence_matrix(sentences):
                     rows.append(first_word_idx)
 
                     cols.append(second_word_idx)
-                    data.append(np.float32(1.0) / distance)
+                    data.append(np.double(1.0) / distance)
                 else:
                     rows.append(second_word_idx)
                     cols.append(first_word_idx)
-                    data.append(np.float32(1.0) / distance)
+                    data.append(np.double(1.0) / distance)
 
-    return sp.coo_matrix((data, (rows, cols)),
+    return sp.coo_matrix((np.double(data), (rows, cols)),
                          shape=(len(dictionary),
                                 len(dictionary)),
-                         dtype=np.float32).tocsr().tocoo()
-
+                         dtype=np.double).tocsr().tocoo()
+ 
 def _reproduce_input_matrix(glove_model):
 
     wvec = glove_model.word_vectors
@@ -118,31 +117,89 @@ def _reproduce_input_matrix(glove_model):
 
     return np.asarray(out)
  
-print('Evaluate IRNN with BOVW and Glove Word Embedding...')
-
  
-corpus_words = [11,2,1,3,4,5]
-corpus = [corpus_words]
 
-corpus_model = Corpus()
-corpus_model.fit(corpus, window=3)
-  
-print(corpus_model.matrix.todense()) 
+bovw_shape=(3,5)
+bovw_bins = np.random.randint(9,13, size=bovw_shape)
+bovw_weights = np.random.randint(2, size=bovw_shape)
+ 
 
 
+print('Bovw bins')
+print(bovw_bins)
+print('Bovw weights')
+print(bovw_weights)
+ 
 
-glove_model = Glove(no_components=3, learning_rate=0.05)
-glove_model.fit(corpus_model.matrix,
+
+
+
+dictionary = {}
+rows = []
+cols = []
+data = array.array('f')
+ 
+k=0 
+#print(bovw_bins)
+
+for frame in bovw_bins:
+        for i, first_word in enumerate(frame):
+            first_word_idx = dictionary.setdefault(first_word,
+                                                   len(dictionary))
+            w1=bovw_weights[k,i]                                    
+            for j, second_word in enumerate(frame):
+                second_word_idx = dictionary.setdefault(second_word,
+                                                        len(dictionary))
+                w2=bovw_weights[k,j]            
+                distance = 1
+                w=w1*w2
+
+                if first_word_idx == second_word_idx:
+                    pass
+                elif first_word_idx < second_word_idx:
+                    rows.append(first_word_idx)
+
+                    cols.append(second_word_idx)
+                    data.append(np.double(w*np.double(1.0) / distance))
+                else:
+                    rows.append(second_word_idx)
+                    cols.append(first_word_idx)
+                    data.append(np.double(w*np.double(1.0) / distance))
+        k=k+1
+     
+                    
+ 
+
+x=sp.coo_matrix((data, (rows, cols)),
+                         shape=(len(dictionary),
+                                len(dictionary)),
+                         dtype=np.double).tocsr().tocoo()      
+print(dictionary)           
+dic_keys=dictionary.keys()
+dic_values=dictionary.values()
+
+              
+xarr=x.toarray()                         
+xarr/=np.amax(xarr)
+print("coocurancem matrix")
+print(xarr)
+xsparse=sp.coo_matrix(xarr)   
+
+glove_model = Glove(no_components=5, learning_rate=0.05)
+glove_model.fit(xsparse,
                     epochs=500,
                     no_threads=2)
 
 
-log_cooc_mat = corpus_model.matrix.copy()
+new_word_representation=glove_model.word_vectors
+print("New word representation")
+print(new_word_representation)
 
-log_cooc_mat.data = np.log(log_cooc_mat.data)
-log_cooc_mat = np.asarray(log_cooc_mat.todense())
+print("*** Query ***")
+query=10
+query_pos=dic_values[dic_keys.index(query)]
 
-repr_matrix = _reproduce_input_matrix(glove_model)
-print("********")
-print(corpus_model.dictionary)
-print(glove_model.word_vectors)
+target=12
+target_pos=dic_values[dic_keys.index(target)]
+sim=np.dot(glove_model.word_vectors[query_pos],glove_model.word_vectors[target_pos])
+print(sim)
