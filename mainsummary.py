@@ -2,94 +2,73 @@
 """
 Created on Sat Nov 26 23:09:19 2016
 
-@author: hessam
+@author: Hessamoddin Shafeian
+
+Activity Recognition from Video using LSTM and Bag of Visual Words
 """
 
-###  Summarization algorithm by Hessamoddin Shafeian
-############ Load Libraries ##############
+ ############ Load Libraries ##############
 
 from __future__ import division, print_function, absolute_import
 from __future__ import print_function
 
 from keras.models import Sequential
-from keras.layers import Dense, Activation
-from keras.layers import SimpleRNN
+from keras.layers import Dense, Activation,LSTM
 from keras.initializations import normal, identity
 from keras.optimizers import RMSprop
 from keras.utils import np_utils
-from mlxtend.preprocessing import one_hot
-import sklearn.mixture.gmm as gm
-from tempfile import TemporaryFile
-from sklearn import mixture
-import numpy as np
-import scipy.io as matreader
-from sklearn.cross_validation import train_test_split
 from scipy.stats import multivariate_normal
-import pprint
-import logging
-#import cv2
-from os import listdir
-import os.path
-from os.path import isfile, join, splitext
-from os import path
-import tflearn
-import pylab,os
-import imageio
+from os.path import isfile, join
+from os import path,listdir
 from skimage.transform import resize
 from skimage.color import rgb2gray
+from skimage.util import view_as_blocks
 from skimage.feature import daisy
-import matplotlib.cbook as cbook
 from sklearn.cluster import KMeans
+ 
+from random import sample
+from glove import Glove
+from array import array
+
+
 import math
 import logging
-import pandas as pd
-import random
-from random import sample
-import csv
-import cPickle as pickle
-from glove import Corpus, Glove
+import sklearn.mixture.gmm as gm
+import numpy as np
+import os
+import imageio
+import os.path
+import scipy.sparse as sp
 
 
-# parameters:
-bovw_size=30
+
+
+"""       
+Parameters
+"""
+bovw_size=100
 num_LSTMs=10
 train_frac=0.5
 LSTM_overlap=0.25
 longest_allowed_frames=500
-
-
 batch_size = 1
 nb_epochs = 200
-hidden_units = 30
-
+hidden_units = 50
 learning_rate = 1e-6
 clip_norm = 1.0
+new_shape,step,radius=(120,180),50,20 # for Daisy feaure
      
-# Define functions
-
+     
+"""       
+Define functions
+"""
 
 def learn_kmeans_codebook(X, codebook_size=1000, seed=None):
-    """Learn a codebook.
-    Run K-Means clustering to compute a codebook. K-Means
-    is initialized by K-Means++, uses a max. of 500 iter-
-    ations and 10 times re-initialization.
-    Paramters
-    ---------
-    X : numpy matrix, shape (N,D)
-        Input data.
-    codebook_size : int (default : 200)
-        Desired number of codewords.
-    seed : int (default : None)
-        Seed for random number generator.
-    Returns
-    -------
-    cb : sklearn.cluster.KMeans object
-        KMeans object after fitting.
+    """ Learn a codebook.
+    source: https://github.com/KitwareMedical/TubeTK/blob/master/Base/Python/pyfsa/core/fsa.py
     """
-
     logger = logging.getLogger()
     logger.info("Learning codebook with %d words ..." % codebook_size)
-
     # Run vector-quantization
     cb = KMeans(codebook_size,
                 init="k-means++",
@@ -99,21 +78,11 @@ def learn_kmeans_codebook(X, codebook_size=1000, seed=None):
     cb.fit(X)
     return cb
 
-# # Reference for GMM and Kmeans : https://github.com/rkwitt/pyfsa/blob/master/core/fsa.py
+ 
 def calc_bovw(X, cb):
     """Compute a (normalized) BoW histogram.
-    Parameters
-    ----------
-    X : numpy matrix, shape (N, D)
-        Input data.
-    cb : sklearn.cluster.KMeans
-        Already estimated codebook with C codewords.
-    Returns
-    -------
-    H : numpy array, shape (C,)
-        Normalized (l2-norm) BoW histogram.
+   source: https://github.com/rkwitt/pyfsa/blob/master/core/fsa.py
     """
-
     # Get nr. codewords
     n,d = cb.cluster_centers_.shape
     # Compute closest cluster centers
@@ -122,44 +91,30 @@ def calc_bovw(X, cb):
     B = range(0,n+1)
     return np.histogram(assignments,bins=B,density=True)[0]
 
-############ Extract frame features ##############
-
-#source: https://github.com/rkwitt/pyfsa/blob/master/core/fsa.py
+ 
 
 def estimate_gm(X,components=1000,seed=None):
     """Estimate a Gaussian mixture model.
-    Note: Uses diagonal covariance matrices.
-    Parameters
-    ----------
-    X : numpy matrix, shape (N,D)
-        Matrix of data samples (i-th row is i-th sample vector).
-    c : int (default : 3)
-        Number of desired mixture components.
-    seed : int (default : None)
-        Seed for the random number generator.
-    Returns
-    -------
-    gm_obj : sklearn.mixture.gmm object
-        Estimated GMM.
+    source: https://github.com/rkwitt/pyfsa/blob/master/core/fsa.py
     """
-
     logger = logging.getLogger()
-
     n, d = X.shape
     logger.info("Estimating %d-comp. GMM from (%d x %d) ..." %
                 (components, n, d))
-
     gm_obj = gm.GMM (n_components=components,
                      covariance_type='diag',
                      random_state=seed)
-
     gm_obj.fit(X)   
     np.random.seed(1)
-  
-    
     return  np.float32(gm_obj.means_), np.float32(gm_obj.covars_), np.float32(gm_obj.weights_)
 
 
+
+
+"""
+Fisher Vector
+https://github.com/jacobgil/pyfishervector/blob/master/fisher.py
+"""
      
 def likelihood_moment(x, ytk, moment):	
 	x_moment = np.power(np.float32(x), moment) if moment > 0 else np.float32([1])
@@ -210,15 +165,40 @@ def fisher_vector(samples, means, covs, w):
 	return fv
 
 	
+ 
 
+ 
 
-def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(120,180),step=50, radius=20):
+ 
+
+def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=50, radius=30):
+    """Extract Daisy feature for a frame of video """
     if frame_no<num_frames-1: 
         frame = vid.get_data(frame_no)  
         frame_resized=resize(frame, new_shape)
         frame_gray= rgb2gray(frame_resized)
         daisy_desc = daisy(frame_gray,step=step, radius=radius)
         daisy_1D=np.ravel(daisy_desc)
+        
+        """Extract Daisy feature for a patch from the frame of video """
+        step_glove=step/10
+        radius_glove=radius/10
+        patch_shape_x=new_shape[0]/8
+        patch_shape_y=new_shape[1]/10
+
+        patchs_arr = view_as_blocks(frame_gray, (patch_shape_x,patch_shape_y))
+        patch_num_row=patchs_arr.shape[0]
+        patch_num_col=patchs_arr.shape[1]
+        final_daisy_length=daisy(patchs_arr[0,0,:,:],step=step_glove, radius=radius_glove,rings=2,histograms=4, orientations=4).size
+        patch_daisy_arr=np.zeros((patch_num_row,patch_num_col,final_daisy_length))
+        for i in xrange(patch_num_row):
+            for j in xrange(patch_num_col):
+                patch=patchs_arr[i,j,:,:]
+                patch_daisy_desc = daisy(patch,step=step_glove, radius=radius_glove,rings=2,histograms=4, orientations=4)
+                patch_daisy_1D=np.ravel(patch_daisy_desc)
+                patch_daisy_arr[i,j,:]=patch_daisy_1D
+                
+        
        #sift = cv2.xfeatures2d.SIFT_create()
        # (sift_kps, sift_descs) = sift.detectAndCompute(frame, None)
        # print("# kps: {}, descriptors: {}".format(len(sift_kps), sift_descs.shape))
@@ -228,30 +208,41 @@ def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(120,180),step=50, ra
     else:
         print("Frame number is larger than the length of video")
   #  return (daisy_1D,surf_descs,sift_descs)
-    return daisy_1D
+    return patch_daisy_arr,daisy_1D
 
 
 
 
-# To split video into different evenly sized set of frames to feed into LSTMs
+
 def chunks(l, n):
-    """Yield successive n-sized chunks from l."""
+    """
+    To split video into different evenly sized set of frames to feed into LSTMs    
+    Yield successive n-sized chunks from l."""
     for i in range(0, len(l), n):
         yield l[i:i+n]
 
-############# objects
-# class of video features and other methadata
-class feature(object):
-    """__init__() functions as the class constructor"""
-    def __init__(self, filename=None, category=None, rawfeature=None, bovw_id=None,frame_id=None):
+"""
+Definition of objects to facilitate bovw feature construction
+"""
+
+ 
+
+
+  
+  
+  
+class framefeature(object):
+    """class of video features and other methadata"""
+    def __init__(self, filename=None, category=None, rawfeature=None, bovw_id=None,frame_id=None,glovefeature=None,griddedfeature=None):
         self.filename = filename
         self.category = category
         self.rawfeature = rawfeature
         self.bovw_id=bovw_id
         self.frame_id=frame_id
+        self.griddedfeature=griddedfeature
         
-class bovw(object):
-    """__init__() functions as the class constructor"""
+class bovwcodebook(object):
+    """Class of Bag of Video Feature object"""
     def __init__(self, middle_frame=None, category=None, bovw_id=None,contained_frames=None,filename=None,code=None):
         self.contained_frames = contained_frames
         self.category=category
@@ -260,35 +251,40 @@ class bovw(object):
         self.code=code
   
  
-class video(object):
-    """__init__() functions as the class constructor"""
+class videofile(object):
+    """Class of Video file object"""
     def __init__(self, contained_bovws=None,category=None,filename=None):
         self.contained_bovws = contained_bovws
         self.category=category
         self.filename = filename
 
+framefeature  = [ framefeature() for i in range(1000000)]
+bovwcodebook=[ bovwcodebook() for i in range(1000000)]
+videofile=[ videofile() for i in range(1000000)]
 
-framefeature = [ feature() for i in range(1000000)]
-bovwcodebook=[ bovw() for i in range(1000000)]
-videofile=[ video() for i in range(1000000)]
 
 
-############ Access Action Category Folders ##############
+""" ************************
+****************************
+Main body of the code
+***************************
+************************""" 
+
 # current working directory for the code
 cwd = os.getcwd()
-# The folder at which the other folders (data) is located at
+# The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
- 
-
-
- 
-
-
 # Find the data folders
 datasetpath=join(parent_dir,'Tour20/Tour20-Videos2/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
+
+"""
+This FOR loop extracts the video frames feature and store them in 
+the array of framefeature objects associated with each frame
+"""
+print("Thus begins feature extraction!")
 i=0
 file_counter=[]
 # cat: categort of actions, also the name of the folder containing the action videos
@@ -302,13 +298,18 @@ for cat in dirs:
 	        if current_file.endswith('.mp4'):
                  print("***")
                  print(current_file)
+                 # full name and path for the current video file
                  videopath=path.join(cat_path,current_file)
-                 # Extract raw Daisy and other features
                  try:
+                     # read the current video file
                      vid = imageio.get_reader(videopath,  'ffmpeg')
+                     # The number of frames for this video
                      num_frames=vid._meta['nframes']
-                     sampling_rate=num_frames//longest_allowed_frames+1
+                     #sampling_rate=num_frames//longest_allowed_frames+1
+                     # step_percent is just a variable to monitor the progress
                      step_percent=num_frames//10
+                     # trim out the bag of videos frames in a way that each
+                     #have bags number equal to multiples of bovw_size
                      bovw_processable_len=bovw_size*(num_frames//bovw_size)
                      # j is the frame index for the bvw processable parts of video
                      for j in xrange(bovw_processable_len):
@@ -317,20 +318,24 @@ for cat in dirs:
                          if j%step_percent==0:
                             print("%d %%" % (1+100*j//num_frames))	
                             # Feature extraction
-                            # daisy_1D,surf_descs,sift_descs 			
-                         current_feature=Feature_Extractor_Fn(vid,num_frames,j)
-                         framefeature[i].filename=videopath
-                         framefeature[i].category=cat
-                         # Accumulating all raw features			
-                         framefeature[i].rawfeature=current_feature
-                         framefeature[i].bovw_id=bovw_id	
-                         framefeature[i].frame_id=i
+                            # daisy_1D,surf_descs,sift_descs 		
+                         # extract dausy features: for the whole frame or grid-wise for each frame
+                         current_grid_feature,current_frame_feature=Feature_Extractor_Fn(vid,num_frames,j) 
+                         framefeature[i].filename=videopath # take the name&path of the video containing the fraame
+                         framefeature[i].category=cat # take the category of the current video 
+                         framefeature[i].rawfeature=current_frame_feature #daisy feature for the whole video
+                         framefeature[i].bovw_id=bovw_id	#bag number in the video for this frame
+                         framefeature[i].frame_id=i # frame number in the video 
+                         framefeature[i].griddedfeature=current_grid_feature # gridded Daisy feature for this frame
+                         
+                         print(i)
                          i=i+1
                          file_counter.append(videopath)
+                         # Track record of which video does this frame belong toin a list
                          file_counter=list(set(file_counter))
                          # update feature objects for each video
-                     pickle.dump(framefeature, open( "raw_features_Class_array.p", "wb" ) )
-                     framefeature_loaded = pickle.load( open( "raw_features_Class_array.p", "rb" ) )
+                     #pickle.dump(framefeature, open( "raw_features_Class_array.p", "wb" ) )
+                     #framefeature_loaded = pickle.load( open( "raw_features_Class_array.p", "rb" ) )
                  except:
                      print("error on video")
                      print(current_file)
@@ -342,7 +347,12 @@ print("Finished raw feature extraction!")
 number_frames_all=i  
 
 
-# Split training and testing sets for frames
+
+"""
+Define the codebooks from traditional holistic (gridded) Daisy features for the whole
+training frames and then making codebooks without (with) Glove
+"""
+# Split training and testing sets for frames for Bovw generation
 all_frames_ind=range(number_frames_all)
 train_ind = sample(all_frames_ind,int(train_frac*number_frames_all))
 test_ind=np.delete(all_frames_ind,train_ind)
@@ -350,61 +360,81 @@ test_ind=np.delete(all_frames_ind,train_ind)
 
     
 
-
-
 # Construct training and testing features for codeboook generation
-training_list=[]
+overall_holisitc_training=[]
 testing_list=[]
+glove_training_list=[]
+glove_testing_list=[]
 for i in train_ind:
-    training_list.append(framefeature[i].rawfeature)
+    overall_holisitc_training.append(framefeature[i].rawfeature)
+    glove_training_list.append(framefeature[i].griddedfeature)
 for i in test_ind:
     testing_list.append(framefeature[i].rawfeature)
+    glove_testing_list.append(framefeature[i].griddedfeature)
 
-bag_training=np.asarray(training_list)
-bag_testing=np.asarray(testing_list)
 
+
+ 
+# Finalizing the NLP kmeans training set for gridden Daisy feature and 
+# transforming it through Glove
+overall_gridded_training=[]
+
+num_samples=len(glove_training_list)
+num_row=glove_training_list[0].shape[0]
+num_col=glove_training_list[0].shape[1]
+ 
+
+for sample_id in xrange(num_samples):
+    for row_id in xrange(num_row):
+        for col_id in xrange(num_col):
+            current_gridded_feature=glove_training_list[sample_id]
+            # Accumulate all the gridded Daisy features from all frames
+            # in training set; same training set for holistic Daisy used
+            # for regular Kmeans codebook generation
+            overall_gridded_training.append(current_gridded_feature[row_id,col_id,:])
+
+
+
+# Ok, this is the summary of what happened so far:
+# gridded Daisy training data: overall_gridded_training
+# holistic Daisy training data: overall_holisitc_training
+
+
+
+
+# Finalizing the kmeans training set 
+overall_holisitc_training=np.asarray(overall_holisitc_training)
+ 
 # first method of bovw calculation: kmeans
-kmeans_codebook_size=int(math.sqrt(math.floor(len(training_list))))
- 
-
-
+kmeans_codebook_size=int(math.sqrt(math.floor(len(overall_holisitc_training))))
 # Final codebook created by Kmeans
-
- 
-kmeans_codebook=learn_kmeans_codebook(bag_training, kmeans_codebook_size)
-
+kmeans_codebook=learn_kmeans_codebook(overall_holisitc_training, kmeans_codebook_size)
 # second method of bovw calculation: GMM (fisher vector)
-
-
-
-m,c,w=estimate_gm(bag_training,kmeans_codebook_size)
-
-
-
-
-
+m,c,w=estimate_gm(overall_holisitc_training,kmeans_codebook_size)
 # The number of all bovws in dataset                      
 num_bovw_all=bovw_id+1
 # Number of all files
 unique_video_files=list(set(file_counter))
 num_videos=len(unique_video_files)
 
-
-
-
-
-# Bag of frames level
+"""
+Codebook generation for representation of Bag of Visual Words
+"""
 for i in xrange(num_bovw_all):
+    # which frames does the current Bovw contain
     current_contained_frames= [ind for ind in range(len(framefeature)) if framefeature[ind].bovw_id == i]
     bovwcodebook[i].contained_frames=current_contained_frames
+    # take the middle frame of the bag of visual words as its examplar
     middle_frame=current_contained_frames[len(current_contained_frames)//2]
     bovwcodebook[i].middle_frame=middle_frame
+    # categotry of the current bag = category of its middle frame= 
+    #category of all frames in the bag= category of the video containing the bag
     bovwcodebook[i].category=framefeature[middle_frame].category
     bovwcodebook[i].filename=framefeature[middle_frame].filename
-    training_list=[]
+    training_list_raw=[]
     for j in current_contained_frames:
-        training_list.append(framefeature[j].rawfeature)
-    bovwcodebook[i].code=calc_bovw(np.asarray(training_list), kmeans_codebook)
+        training_list_raw.append(framefeature[j].rawfeature)
+    bovwcodebook[i].code=calc_bovw(np.asarray(training_list_raw), kmeans_codebook)
 
  
  
@@ -415,7 +445,9 @@ overall_bovw_ind=[]
 X_bovw_code=[]
 X_raw_code=[]
 X_sample_timestep=[]
-# Video file level containing BOVW
+"""
+Video file level containing BOVW
+"""
 for i in xrange(num_videos):
      videofile[i].filename=unique_video_files[i]
      current_contained_bovws= [ind for ind in range(len(bovwcodebook)) if bovwcodebook[ind].filename == unique_video_files[i]]
@@ -482,7 +514,7 @@ X_raw_train=X_raw[train_ind,:]
 print('Evaluate IRNN...')
 model = Sequential()
 
-model.add(SimpleRNN(output_dim=hidden_units,
+model.add(LSTM(output_dim=hidden_units,
                     init=lambda shape, name: normal(shape, scale=0.001, name=name),
                     inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
                     activation='relu',
@@ -513,7 +545,7 @@ print('Evaluate IRNN...')
 model = Sequential()
 
 
-model.add(SimpleRNN(output_dim=hidden_units,
+model.add(LSTM(output_dim=hidden_units,
                     init=lambda shape, name: normal(shape, scale=0.001, name=name),
                     inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
                     activation='relu',
@@ -537,12 +569,24 @@ print('IRNN test accuracy:', scores[1])
  
  
  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+"""***************
+ GLOVE for Video
+ ***************"""
+ 
 
 
 bovw_shape=(3,5)
 bovw_bins = np.random.randint(9,13, size=bovw_shape)
 bovw_weights = np.random.randint(2, size=bovw_shape)
- 
+
 
 
 print('Bovw bins')
@@ -601,7 +645,7 @@ dic_values=dictionary.values()
               
 xarr=x.toarray()                         
 xarr/=np.amax(xarr)
-print("coocurancem matrix")
+print("coocurance matrix")
 print(xarr)
 xsparse=sp.coo_matrix(xarr)   
 
