@@ -179,6 +179,7 @@ def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=50, ra
         frame_gray= rgb2gray(frame_resized)
         daisy_desc = daisy(frame_gray,step=step, radius=radius)
         daisy_1D=np.ravel(daisy_desc)
+        print(daisy_1D.shape)
         
         """Extract Daisy feature for a patch from the frame of video """
         step_glove=step/10
@@ -189,14 +190,16 @@ def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=50, ra
         patchs_arr = view_as_blocks(frame_gray, (patch_shape_x,patch_shape_y))
         patch_num_row=patchs_arr.shape[0]
         patch_num_col=patchs_arr.shape[1]
-        final_daisy_length=daisy(patchs_arr[0,0,:,:],step=step_glove, radius=radius_glove,rings=2,histograms=4, orientations=4).size
+        final_daisy_length=daisy(patchs_arr[0,0,:,:],step=step_glove, radius=radius_glove).size
+        print(final_daisy_length)
         patch_daisy_arr=np.zeros((patch_num_row,patch_num_col,final_daisy_length))
         for i in xrange(patch_num_row):
             for j in xrange(patch_num_col):
                 patch=patchs_arr[i,j,:,:]
-                patch_daisy_desc = daisy(patch,step=step_glove, radius=radius_glove,rings=2,histograms=4, orientations=4)
+                patch_daisy_desc = daisy(patch,step=step_glove, radius=radius_glove)
                 patch_daisy_1D=np.ravel(patch_daisy_desc)
                 patch_daisy_arr[i,j,:]=patch_daisy_1D
+                
                 
         
        #sift = cv2.xfeatures2d.SIFT_create()
@@ -249,6 +252,7 @@ class bovwcodebook(object):
         self.middle_frame=middle_frame
         self.filename=filename
         self.code=code
+        self.gridded_code=code
   
  
 class videofile(object):
@@ -404,13 +408,19 @@ for sample_id in xrange(num_samples):
 
 # Finalizing the kmeans training set 
 overall_holisitc_training=np.asarray(overall_holisitc_training)
- 
+overall_gridded_training=np.asarray(overall_gridded_training)
+
 # first method of bovw calculation: kmeans
-kmeans_codebook_size=int(math.sqrt(math.floor(len(overall_holisitc_training))))
+kmeans_codebook_size_gridded=int(math.sqrt(math.floor(len(overall_gridded_training))))
+kmeans_codebook_size_holistic=int(math.sqrt(math.floor(len(overall_holisitc_training))))
+
 # Final codebook created by Kmeans
-kmeans_codebook=learn_kmeans_codebook(overall_holisitc_training, kmeans_codebook_size)
-# second method of bovw calculation: GMM (fisher vector)
-m,c,w=estimate_gm(overall_holisitc_training,kmeans_codebook_size)
+kmeans_codebook_holistic=learn_kmeans_codebook(overall_holisitc_training, kmeans_codebook_size_holistic)
+kmeans_codebook_gridded=learn_kmeans_codebook(overall_gridded_training, kmeans_codebook_size_gridded)
+
+# second method of bovw calculation: GMM (fisher vector) ... to be finished later
+m,c,w=estimate_gm(overall_holisitc_training,overall_holisitc_training)
+
 # The number of all bovws in dataset                      
 num_bovw_all=bovw_id+1
 # Number of all files
@@ -431,10 +441,16 @@ for i in xrange(num_bovw_all):
     #category of all frames in the bag= category of the video containing the bag
     bovwcodebook[i].category=framefeature[middle_frame].category
     bovwcodebook[i].filename=framefeature[middle_frame].filename
-    training_list_raw=[]
+    training_list_holistic=[]
+    training_list_gridded=[]
     for j in current_contained_frames:
-        training_list_raw.append(framefeature[j].rawfeature)
-    bovwcodebook[i].code=calc_bovw(np.asarray(training_list_raw), kmeans_codebook)
+        training_list_holistic.append(framefeature[j].rawfeature)
+        for row_id in xrange(num_row):
+            for col_id in xrange(num_col):
+                training_list_gridded.append(framefeature[j].griddedfeature)
+                
+    bovwcodebook[i].code=calc_bovw(np.asarray(training_list_holistic), kmeans_codebook_holistic)
+    bovwcodebook[i].gridded_code=calc_bovw(np.asarray(training_list_gridded), kmeans_codebook_gridded)
 
  
  
