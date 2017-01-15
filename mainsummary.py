@@ -171,7 +171,7 @@ def fisher_vector(samples, means, covs, w):
 
  
 
-def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=50, radius=30):
+def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=80, radius=45):
     """Extract Daisy feature for a frame of video """
     if frame_no<num_frames-1: 
         frame = vid.get_data(frame_no)  
@@ -182,23 +182,22 @@ def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=50, ra
         print(daisy_1D.shape)
         
         """Extract Daisy feature for a patch from the frame of video """
-        step_glove=step/10
-        radius_glove=radius/10
-        patch_shape_x=new_shape[0]/8
-        patch_shape_y=new_shape[1]/10
+        step_glove=int(step/10)
+        radius_glove=int(radius/10)
+        patch_shape_x=int(new_shape[0]/10)
+        patch_shape_y=int(new_shape[1]/10)
 
         patchs_arr = view_as_blocks(frame_gray, (patch_shape_x,patch_shape_y))
         patch_num_row=patchs_arr.shape[0]
         patch_num_col=patchs_arr.shape[1]
         final_daisy_length=daisy(patchs_arr[0,0,:,:],step=step_glove, radius=radius_glove).size
-        print(final_daisy_length)
         patch_daisy_arr=np.zeros((patch_num_row,patch_num_col,final_daisy_length))
         for i in xrange(patch_num_row):
-            for j in xrange(patch_num_col):
-                patch=patchs_arr[i,j,:,:]
+            for k in xrange(patch_num_col):
+                patch=patchs_arr[i,k,:,:]
                 patch_daisy_desc = daisy(patch,step=step_glove, radius=radius_glove)
                 patch_daisy_1D=np.ravel(patch_daisy_desc)
-                patch_daisy_arr[i,j,:]=patch_daisy_1D
+                patch_daisy_arr[i,k,:]=patch_daisy_1D
                 
                 
         
@@ -236,23 +235,25 @@ Definition of objects to facilitate bovw feature construction
   
 class framefeature(object):
     """class of video features and other methadata"""
-    def __init__(self, filename=None, category=None, rawfeature=None, bovw_id=None,frame_id=None,glovefeature=None,griddedfeature=None):
+    def __init__(self, filename=None, category=None, rawfeature=None, bovw_id=None,frame_id=None,glovefeature=None,griddedfeature=None,gridded_code=None):
         self.filename = filename
         self.category = category
         self.rawfeature = rawfeature
         self.bovw_id=bovw_id
         self.frame_id=frame_id
         self.griddedfeature=griddedfeature
+        self.gridded_code=gridded_code
+
         
 class bovwcodebook(object):
     """Class of Bag of Video Feature object"""
-    def __init__(self, middle_frame=None, category=None, bovw_id=None,contained_frames=None,filename=None,code=None):
+    def __init__(self, middle_frame=None, category=None, bovw_id=None,contained_frames=None,filename=None,code=None,gridded_code=None):
         self.contained_frames = contained_frames
         self.category=category
         self.middle_frame=middle_frame
         self.filename=filename
         self.code=code
-        self.gridded_code=code
+        self.gridded_code=gridded_code
   
  
 class videofile(object):
@@ -325,7 +326,7 @@ for cat in dirs:
                             # daisy_1D,surf_descs,sift_descs 		
                          # extract dausy features: for the whole frame or grid-wise for each frame
                          current_grid_feature,current_frame_feature=Feature_Extractor_Fn(vid,num_frames,j) 
-                         framefeature[i].filename=videopath # take the name&path of the video containing the fraame
+                         framefeature[i].filename=videopath # take the name&path ofj the video containing the fraame
                          framefeature[i].category=cat # take the category of the current video 
                          framefeature[i].rawfeature=current_frame_feature #daisy feature for the whole video
                          framefeature[i].bovw_id=bovw_id	#bag number in the video for this frame
@@ -372,6 +373,7 @@ glove_testing_list=[]
 for i in train_ind:
     overall_holisitc_training.append(framefeature[i].rawfeature)
     glove_training_list.append(framefeature[i].griddedfeature)
+
 for i in test_ind:
     testing_list.append(framefeature[i].rawfeature)
     glove_testing_list.append(framefeature[i].griddedfeature)
@@ -419,7 +421,7 @@ kmeans_codebook_holistic=learn_kmeans_codebook(overall_holisitc_training, kmeans
 kmeans_codebook_gridded=learn_kmeans_codebook(overall_gridded_training, kmeans_codebook_size_gridded)
 
 # second method of bovw calculation: GMM (fisher vector) ... to be finished later
-m,c,w=estimate_gm(overall_holisitc_training,overall_holisitc_training)
+m,c,w=estimate_gm(overall_holisitc_training,kmeans_codebook_size_holistic)
 
 # The number of all bovws in dataset                      
 num_bovw_all=bovw_id+1
@@ -429,6 +431,18 @@ num_videos=len(unique_video_files)
 
 """
 Codebook generation for representation of Bag of Visual Words
+Summary:
+bovwcodebook[i].gridded_code:
+(For video bag i, the codeword generated based on the
+whole gridded Daisy features inside each frame of the bag)
+
+framefeature[j].gridded_code:
+(For frame j, the gridded daisy feature)
+
+bovwcodebook[i].code:
+(For video bag i, the holistic codebook across all containing frames)
+
+
 """
 for i in xrange(num_bovw_all):
     # which frames does the current Bovw contain
@@ -442,18 +456,28 @@ for i in xrange(num_bovw_all):
     bovwcodebook[i].category=framefeature[middle_frame].category
     bovwcodebook[i].filename=framefeature[middle_frame].filename
     training_list_holistic=[]
-    training_list_gridded=[]
     for j in current_contained_frames:
         training_list_holistic.append(framefeature[j].rawfeature)
+    bovwcodebook[i].code=calc_bovw(np.asarray(training_list_holistic), kmeans_codebook_holistic)
+
+    training_gridded_intrabag=[]
+    for j in current_contained_frames:
+        current_gridded_frame_feature=framefeature[j].griddedfeature
+        training_gridded_intraframe=[]
         for row_id in xrange(num_row):
             for col_id in xrange(num_col):
-                training_list_gridded.append(framefeature[j].griddedfeature)
+                ccurrent_grid_feature=current_gridded_frame_feature[row_id,col_id,:]
+                training_gridded_intraframe.append(ccurrent_grid_feature)
+                training_gridded_intrabag.append(ccurrent_grid_feature)
+                framefeature[j].gridded_code=calc_bovw(np.asarray(training_gridded_intraframe), kmeans_codebook_gridded)  #saves gridded Bovw for the whole frame
+              
+    bovwcodebook[i].gridded_code=calc_bovw(np.asarray(training_gridded_intrabag), kmeans_codebook_gridded)  #saves gridded Bovw for the whole bag
+              
+                 
+                 
                 
-    bovwcodebook[i].code=calc_bovw(np.asarray(training_list_holistic), kmeans_codebook_holistic)
-    bovwcodebook[i].gridded_code=calc_bovw(np.asarray(training_list_gridded), kmeans_codebook_gridded)
-
- 
- 
+                
+                
  
 cat_list=[]
 sample_ind=0
