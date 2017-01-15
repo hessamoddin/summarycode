@@ -1,14 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Nov 26 23:09:19 2016
-
-@author: Hessamoddin Shafeian
-
-Activity Recognition from Video using LSTM and Bag of Visual Words
-"""
-
- ############ Load Libraries ##############
-
 from __future__ import division, print_function, absolute_import
 from __future__ import print_function
 
@@ -25,12 +14,11 @@ from skimage.color import rgb2gray
 from skimage.util import view_as_blocks
 from skimage.feature import daisy
 from sklearn.cluster import KMeans
- 
 from random import sample
 from glove import Glove
-from array import array
+ 
 
-
+import array
 import math
 import logging
 import sklearn.mixture.gmm as gm
@@ -461,21 +449,22 @@ for i in xrange(num_bovw_all):
     bovwcodebook[i].code=calc_bovw(np.asarray(training_list_holistic), kmeans_codebook_holistic)
 
     training_gridded_intrabag=[]
+    gridded_words_intrabag=[]
     for j in current_contained_frames:
         current_gridded_frame_feature=framefeature[j].griddedfeature
+        gridded_words_intraframe=np.zeros(num_row,num_col)
         training_gridded_intraframe=[]
         for row_id in xrange(num_row):
             for col_id in xrange(num_col):
-                ccurrent_grid_feature=current_gridded_frame_feature[row_id,col_id,:]
-                training_gridded_intraframe.append(ccurrent_grid_feature)
-                training_gridded_intrabag.append(ccurrent_grid_feature)
+                current_grid_feature=current_gridded_frame_feature[row_id,col_id,:]
+                current_grid_word = kmeans_codebook_gridded.predict(np.transpose(current_grid_feature))
+                gridded_words_intraframe[row_id,col_id]=current_grid_word
+                #temp=calc_bovw(np.transpose(current_grid_feature), kmeans_codebook_gridded)
+                training_gridded_intraframe.append(current_grid_feature)
+                training_gridded_intrabag.append(current_grid_feature)
                 framefeature[j].gridded_code=calc_bovw(np.asarray(training_gridded_intraframe), kmeans_codebook_gridded)  #saves gridded Bovw for the whole frame
               
-    bovwcodebook[i].gridded_code=calc_bovw(np.asarray(training_gridded_intrabag), kmeans_codebook_gridded)  #saves gridded Bovw for the whole bag
-              
-                 
-                 
-                
+    bovwcodebook[i].gridded_code=calc_bovw(np.asarray(training_gridded_intrabag), kmeans_codebook_gridded)  #saves gridded Bovw for the whole bag     
                 
                 
  
