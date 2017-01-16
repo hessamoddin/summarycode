@@ -458,12 +458,14 @@ for i in xrange(num_bovw_all):
             for col_id in xrange(num_col):
                 current_grid_feature=current_gridded_frame_feature[row_id,col_id,:]
                 current_grid_word = kmeans_codebook_gridded.predict(np.transpose(current_grid_feature))
-                gridded_words_intraframe[row_id,col_id]=current_grid_word
+                # Map the gridded daisy feature to a word
+                gridded_words_intraframe[row_id,col_id]=current_grid_word[0]
                 #temp=calc_bovw(np.transpose(current_grid_feature), kmeans_codebook_gridded)
                 training_gridded_intraframe.append(current_grid_feature)
                 training_gridded_intrabag.append(current_grid_feature)
                 framefeature[j].gridded_code=calc_bovw(np.asarray(training_gridded_intraframe), kmeans_codebook_gridded)  #saves gridded Bovw for the whole frame
-              
+        gridded_words_intrabag.append(np.ravel(gridded_words_intraframe)) # each row contains words for each containing frame
+        
     bovwcodebook[i].gridded_code=calc_bovw(np.asarray(training_gridded_intrabag), kmeans_codebook_gridded)  #saves gridded Bovw for the whole bag     
                 
                 
