@@ -452,7 +452,7 @@ for i in xrange(num_bovw_all):
     gridded_words_intrabag=[]
     for j in current_contained_frames:
         current_gridded_frame_feature=framefeature[j].griddedfeature
-        gridded_words_intraframe=np.zeros(num_row,num_col)
+        gridded_words_intraframe=np.zeros((num_row,num_col))
         training_gridded_intraframe=[]
         for row_id in xrange(num_row):
             for col_id in xrange(num_col):
@@ -464,10 +464,10 @@ for i in xrange(num_bovw_all):
                 training_gridded_intraframe.append(current_grid_feature)
                 training_gridded_intrabag.append(current_grid_feature)
                 framefeature[j].gridded_code=calc_bovw(np.asarray(training_gridded_intraframe), kmeans_codebook_gridded)  #saves gridded Bovw for the whole frame
-        gridded_words_intrabag.append(np.ravel(gridded_words_intraframe)) # each row contains words for each containing frame
+        gridded_words_intrabag.append(np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),))) # each row contains words for each containing frame
         
     bovwcodebook[i].gridded_code=calc_bovw(np.asarray(training_gridded_intrabag), kmeans_codebook_gridded)  #saves gridded Bovw for the whole bag     
-                
+    np.asarray(gridded_words_intrabag)            
                 
  
 cat_list=[]
@@ -662,7 +662,7 @@ for frame in bovw_bins:
                     data.append(np.double(w*np.double(1.0) / distance))
         k=k+1
      
-                    
+                        
  
 
 x=sp.coo_matrix((data, (rows, cols)),
