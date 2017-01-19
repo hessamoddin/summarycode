@@ -34,6 +34,7 @@ import scipy.sparse as sp
 """       
 Parameters
 """
+subsampling_rate=50
 bovw_size=100
 num_LSTMs=10
 train_frac=0.5
@@ -50,83 +51,6 @@ new_shape,step,radius=(120,180),50,20 # for Daisy feaure
 """       
 Define functions
 """
-
-def Glove_Calculator(bovw_bins):
-    """
-    
-    """
-    
-    bovw_weights=np.ones((bovw_bins.shape))
-
-
-    dictionary = {} 
-    rows = []
-    cols = []
-    data = array.array('f')
- 
-    k=0 
-    #print(bovw_bins)
-
-    for frame in bovw_bins:
-        for i, first_word in enumerate(frame):
-            first_word_idx = dictionary.setdefault(first_word,
-                                                   len(dictionary))
-            w1=bovw_weights[k,i]                                    
-            for j, second_word in enumerate(frame):
-                second_word_idx = dictionary.setdefault(second_word,
-                                                        len(dictionary))
-                w2=bovw_weights[k,j]            
-                distance = 1
-                w=w1*w2
-
-                if first_word_idx == second_word_idx:
-                    pass
-                elif first_word_idx < second_word_idx:
-                    rows.append(first_word_idx)
-
-                    cols.append(second_word_idx)
-                    data.append(np.double(w*np.double(1.0) / distance))
-                else:
-                    rows.append(second_word_idx)
-                    cols.append(first_word_idx)
-                    data.append(np.double(w*np.double(1.0) / distance))
-        k=k+1
-     
-                        
- 
-
-    x=sp.coo_matrix((data, (rows, cols)),
-                         shape=(len(dictionary),
-                                len(dictionary)),
-                         dtype=np.double).tocsr().tocoo()      
-    print(dictionary)           
-    dic_keys=dictionary.keys()
-    dic_values=dictionary.values()
-
-              
-    xarr=x.toarray()                         
-    xarr/=np.amax(xarr)
-    print("coocurance matrix")
-    print(xarr)
-    xsparse=sp.coo_matrix(xarr)   
-
-    glove_model = Glove(no_components=5, learning_rate=0.05)
-    glove_model.fit(xsparse,epochs=500,no_threads=2)
-
-
-    new_word_representation=glove_model.word_vectors
-    print("New word representation")
-    print(new_word_representation)
-
-    print("*** Query ***")
-    query=10
-    query_pos=dic_values[dic_keys.index(query)]
-
-    target=12
-    target_pos=dic_values[dic_keys.index(target)]
-    sim=np.dot(glove_model.word_vectors[query_pos],glove_model.word_vectors[target_pos])
-    print(sim) 
-    return new_word_representation
 
 def learn_kmeans_codebook(X, codebook_size=1000, seed=None):
     """ Learn a codebook.
@@ -151,7 +75,7 @@ def calc_bovw(X, cb):
     # Get nr. codewords
     n,d = cb.cluster_centers_.shape
     # Compute closest cluster centers
-    assignments = cb.predict(X)
+    assignments = cb.predict((X))
     # Compute (normalized) BoW histogram
     B = range(0,n+1)
     return np.histogram(assignments,bins=B,density=True)[0]
@@ -312,13 +236,14 @@ class framefeature(object):
         
 class bovwcodebook(object):
     """Class of Bag of Video Feature object"""
-    def __init__(self, middle_frame=None, category=None, bovw_id=None,contained_frames=None,filename=None,code=None,gridded_code=None):
+    def __init__(self, middle_frame=None, category=None, bovw_id=None,contained_frames=None,filename=None,code=None,gridded_code=None,words=None):
         self.contained_frames = contained_frames
         self.category=category
         self.middle_frame=middle_frame
         self.filename=filename
         self.code=code
         self.gridded_code=gridded_code
+        self.words=words
   
  
 class videofile(object):
@@ -383,22 +308,22 @@ for cat in dirs:
                      bovw_processable_len=bovw_size*(num_frames//bovw_size)
                      # j is the frame index for the bvw processable parts of video
                      for j in xrange(bovw_processable_len):
-                         bovw_id=i//bovw_size  # every bovw_size block of frames
+                         bovw_id=(subsampling_rate*i)//bovw_size  # every bovw_size block of frames
                         # print("** frame no %d **" % j)	
                          if j%step_percent==0:
                             print("%d %%" % (1+100*j//num_frames))	
                             # Feature extraction
                             # daisy_1D,surf_descs,sift_descs 		
                          # extract dausy features: for the whole frame or grid-wise for each frame
-                         current_grid_feature,current_frame_feature=Feature_Extractor_Fn(vid,num_frames,j) 
+                         current_grid_feature,current_frame_feature=Feature_Extractor_Fn(vid,num_frames,j*subsampling_rate) 
                          framefeature[i].filename=videopath # take the name&path ofj the video containing the fraame
                          framefeature[i].category=cat # take the category of the current video 
                          framefeature[i].rawfeature=current_frame_feature #daisy feature for the whole video
                          framefeature[i].bovw_id=bovw_id	#bag number in the video for this frame
                          framefeature[i].frame_id=i # frame number in the video 
                          framefeature[i].griddedfeature=current_grid_feature # gridded Daisy feature for this frame
-                         
                          print(i)
+                         print(bovw_id)
                          i=i+1
                          file_counter.append(videopath)
                          # Track record of which video does this frame belong toin a list
@@ -533,8 +458,8 @@ for i in xrange(num_bovw_all):
         training_gridded_intraframe=[]
         for row_id in xrange(num_row):
             for col_id in xrange(num_col):
-                current_grid_feature=current_gridded_frame_feature[row_id,col_id,:]
-                current_grid_word = kmeans_codebook_gridded.predict(np.transpose(current_grid_feature))
+                current_grid_feature=current_gridded_frame_feature[row_id,col_id,:].reshape(1,-1)
+                current_grid_word = kmeans_codebook_gridded.predict(current_grid_feature)
                 # Map the gridded daisy feature to a word
                 gridded_words_intraframe[row_id,col_id]=current_grid_word[0]
                 #temp=calc_bovw(np.transpose(current_grid_feature), kmeans_codebook_gridded)
@@ -544,7 +469,7 @@ for i in xrange(num_bovw_all):
         gridded_words_intrabag.append(np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),))) # each row contains words for each containing frame
         
     bovwcodebook[i].gridded_code=calc_bovw(np.asarray(training_gridded_intrabag), kmeans_codebook_gridded)  #saves gridded Bovw for the whole bag     
-    np.asarray(gridded_words_intrabag)            
+    bovwcodebook[i].words=np.asarray(gridded_words_intrabag)            
                 
  
 cat_list=[]
@@ -671,3 +596,107 @@ model.fit(X_raw_train, Y_train, nb_epoch=nb_epochs,
 scores = model.evaluate(X_raw_test, Y_test, verbose=0)
 print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+"""***************
+ GLOVE for Video
+ ***************"""
+ 
+
+
+bovw_shape=(3,5)
+bovw_bins = np.random.randint(9,13, size=bovw_shape)
+bovw_weights = np.random.randint(2, size=bovw_shape)
+
+
+
+print('Bovw bins')
+print(bovw_bins)
+print('Bovw weights')
+print(bovw_weights)
+ 
+
+
+
+
+dictionary = {}
+rows = []
+cols = []
+data = array.array('f')
+ 
+k=0 
+#print(bovw_bins)
+
+for frame in bovw_bins:
+        for i, first_word in enumerate(frame):
+            first_word_idx = dictionary.setdefault(first_word,
+                                                   len(dictionary))
+            w1=bovw_weights[k,i]                                    
+            for j, second_word in enumerate(frame):
+                second_word_idx = dictionary.setdefault(second_word,
+                                                        len(dictionary))
+                w2=bovw_weights[k,j]            
+                distance = 1
+                w=w1*w2
+
+                if first_word_idx == second_word_idx:
+                    pass
+                elif first_word_idx < second_word_idx:
+                    rows.append(first_word_idx)
+
+                    cols.append(second_word_idx)
+                    data.append(np.double(w*np.double(1.0) / distance))
+                else:
+                    rows.append(second_word_idx)
+                    cols.append(first_word_idx)
+                    data.append(np.double(w*np.double(1.0) / distance))
+        k=k+1
+     
+                        
+ 
+
+x=sp.coo_matrix((data, (rows, cols)),
+                         shape=(len(dictionary),
+                                len(dictionary)),
+                         dtype=np.double).tocsr().tocoo()      
+print(dictionary)           
+dic_keys=dictionary.keys()
+dic_values=dictionary.values()
+
+              
+xarr=x.toarray()                         
+xarr/=np.amax(xarr)
+print("coocurance matrix")
+print(xarr)
+xsparse=sp.coo_matrix(xarr)   
+
+glove_model = Glove(no_components=5, learning_rate=0.05)
+glove_model.fit(xsparse,
+                    epochs=500,
+                    no_threads=2)
+
+
+new_word_representation=glove_model.word_vectors
+print("New word representation")
+print(new_word_representation)
+
+print("*** Query ***")
+query=10
+query_pos=dic_values[dic_keys.index(query)]
+
+target=12
+target_pos=dic_values[dic_keys.index(target)]
+sim=np.dot(glove_model.word_vectors[query_pos],glove_model.word_vectors[target_pos])
+print(sim) 
