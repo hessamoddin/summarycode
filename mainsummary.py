@@ -34,7 +34,7 @@ import scipy.sparse as sp
 """       
 Parameters
 """
-subsampling_rate=50
+subsampling_rate=10
 bovw_size=100
 num_LSTMs=10
 train_frac=0.5
@@ -75,7 +75,7 @@ def calc_bovw(X, cb):
     # Get nr. codewords
     n,d = cb.cluster_centers_.shape
     # Compute closest cluster centers
-    assignments = cb.predict((X))
+    assignments = cb.predict(X)
     # Compute (normalized) BoW histogram
     B = range(0,n+1)
     return np.histogram(assignments,bins=B,density=True)[0]
@@ -305,8 +305,9 @@ for cat in dirs:
                      step_percent=num_frames//10
                      # trim out the bag of videos frames in a way that each
                      #have bags number equal to multiples of bovw_size
-                     bovw_processable_len=bovw_size*(num_frames//bovw_size)
-                     # j is the frame index for the bvw processable parts of video
+                     bovw_processable_len=bovw_size*(num_frames//(bovw_size))
+                     bovw_processable_len=subsampling_rate*(bovw_processable_len//(subsampling_rate))
+                      # j is the frame index for the bvw processable parts of video
                      for j in xrange(bovw_processable_len):
                          bovw_id=(subsampling_rate*i)//bovw_size  # every bovw_size block of frames
                         # print("** frame no %d **" % j)	
@@ -324,6 +325,7 @@ for cat in dirs:
                          framefeature[i].griddedfeature=current_grid_feature # gridded Daisy feature for this frame
                          print(i)
                          print(bovw_id)
+                         print(j*subsampling_rate)
                          i=i+1
                          file_counter.append(videopath)
                          # Track record of which video does this frame belong toin a list
@@ -348,9 +350,9 @@ Define the codebooks from traditional holistic (gridded) Daisy features for the 
 training frames and then making codebooks without (with) Glove
 """
 # Split training and testing sets for frames for Bovw generation
-all_frames_ind=range(number_frames_all)
-train_ind = sample(all_frames_ind,int(train_frac*number_frames_all))
-test_ind=np.delete(all_frames_ind,train_ind)
+all_frames_ind_1=range(number_frames_all)
+train_ind_1 = sample(all_frames_ind_1,int(train_frac*number_frames_all))
+test_ind_1=np.delete(all_frames_ind_1,train_ind_1)
     
 
     
@@ -360,11 +362,11 @@ overall_holisitc_training=[]
 testing_list=[]
 glove_training_list=[]
 glove_testing_list=[]
-for i in train_ind:
+for i in train_ind_1:
     overall_holisitc_training.append(framefeature[i].rawfeature)
     glove_training_list.append(framefeature[i].griddedfeature)
 
-for i in test_ind:
+for i in test_ind_1:
     testing_list.append(framefeature[i].rawfeature)
     glove_testing_list.append(framefeature[i].griddedfeature)
 
@@ -465,11 +467,11 @@ for i in xrange(num_bovw_all):
                 #temp=calc_bovw(np.transpose(current_grid_feature), kmeans_codebook_gridded)
                 training_gridded_intraframe.append(current_grid_feature)
                 training_gridded_intrabag.append(current_grid_feature)
-                framefeature[j].gridded_code=calc_bovw(np.asarray(training_gridded_intraframe), kmeans_codebook_gridded)  #saves gridded Bovw for the whole frame
+                framefeature[j].gridded_code=calc_bovw(np.squeeze(np.asarray(training_gridded_intraframe),axis=(1,)), kmeans_codebook_gridded)  #saves gridded Bovw for the whole frame
         gridded_words_intrabag.append(np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),))) # each row contains words for each containing frame
         
-    bovwcodebook[i].gridded_code=calc_bovw(np.asarray(training_gridded_intrabag), kmeans_codebook_gridded)  #saves gridded Bovw for the whole bag     
-    bovwcodebook[i].words=np.asarray(gridded_words_intrabag)            
+    bovwcodebook[i].gridded_code=calc_bovw(np.squeeze(np.asarray(training_gridded_intrabag),axis=(1,)), kmeans_codebook_gridded)  #saves gridded Bovw for the whole bag     
+    bovwcodebook[i].words=np.asarray(gridded_words_intrabag) # all words across all frames wihin the bag i          
                 
  
 cat_list=[]
@@ -521,24 +523,24 @@ for i in xrange(len(overall_bovw_ind)):
 
   
 # Split training and testing sets for frames
-all_frames_ind=range(len(cat_list))
-train_ind = sample(all_frames_ind,int(0.5*len(cat_list)))
-test_ind=np.delete(all_frames_ind,train_ind)
+all_frames_ind_2=range(len(cat_list))
+train_ind_2= sample(all_frames_ind_2,int(0.5*len(cat_list)))
+test_ind_2=np.delete(all_frames_ind_2,train_ind_2)
 
 
 nb_classes=len(dirs)
 Y = np_utils.to_categorical(np.asarray(cat_list),nb_classes )
 
 
-X_test=X[test_ind,:]   
-X_train=X[train_ind,:]    
-Y_test=Y[test_ind,:]   
-Y_train=Y[train_ind,:]  
+X_test=X[test_ind_2,:]   
+X_train=X[train_ind_2,:]    
+Y_test=Y[test_ind_2,:]   
+Y_train=Y[train_ind_2,:]  
 
 
 
-X_raw_test=X_raw[test_ind,:]   
-X_raw_train=X_raw[train_ind,:]    
+X_raw_test=X_raw[test_ind_2,:]   
+X_raw_train=X_raw[train_ind_2,:]    
      
  
 
