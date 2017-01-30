@@ -10,13 +10,15 @@ Created on Sat Nov 26 23:09:19 2016
 
 from __future__ import division, print_function, absolute_import
 from __future__ import print_function
-
 from keras.models import Sequential
 from keras.layers import Dense, Activation
 from keras.layers import SimpleRNN
 from keras.initializations import normal, identity
 from keras.optimizers import RMSprop
 from keras.utils import np_utils
+from hyperopt import Trials, STATUS_OK, tpe
+from hyperas import optim
+from hyperas.distributions import choice, uniform, conditional
 import sklearn.mixture.gmm as gm
 import numpy as np
 from scipy.stats import multivariate_normal
@@ -33,10 +35,11 @@ from skimage.feature import daisy
 from sklearn.cluster import KMeans
 import math
 from random import sample
+
   
 
 # parameters:
-bovw_size=30
+bovw_size=5
 num_LSTMs=10
 train_frac=0.5
 LSTM_overlap=0.25
@@ -45,10 +48,12 @@ longest_allowed_frames=500
 
 batch_size = 1
 nb_epochs = 200
-hidden_units = 100
+hidden_units = 30
 
 learning_rate = 1e-6
 clip_norm = 1.0
+
+#imageio.plugins.ffmpeg.download()
      
 # Define functions
 
@@ -270,7 +275,7 @@ parent_dir = os.path.split(cwd)[0]
 
 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos2/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos3/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -446,22 +451,14 @@ test_ind=np.delete(all_frames_ind,train_ind)
 
 nb_classes=len(dirs)
 Y = np_utils.to_categorical(np.asarray(cat_list),nb_classes )
-
-
 X_test=X[test_ind,:]   
 X_train=X[train_ind,:]    
 Y_test=Y[test_ind,:]   
 Y_train=Y[train_ind,:]  
 
-
-
 X_raw_test=X_raw[test_ind,:]   
 X_raw_train=X_raw[train_ind,:]    
      
- 
-
- 
-
 print('Evaluate IRNN...')
 model = Sequential()
 
@@ -477,7 +474,7 @@ model.compile(loss='categorical_crossentropy',
               optimizer=rmsprop,
               metrics=['accuracy'])
 
-model.fit(X_train, Y_train, nb_epoch=nb_epochs,verbose=1)
+model.fit(X_train, Y_train, nb_epoch=nb_epochs,verbose=0)
 
 scores = model.evaluate(X_test, Y_test, verbose=0)
 print('IRNN test score:', scores[0])
