@@ -16,6 +16,7 @@ from keras.layers import SimpleRNN
 from keras.initializations import normal, identity
 from keras.optimizers import RMSprop
 from keras.utils import np_utils
+from keras.wrappers.scikit_learn import KerasClassifier
 from sklearn.grid_search import GridSearchCV
 import sklearn.mixture.gmm as gm
 import numpy as np
