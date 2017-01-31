@@ -499,6 +499,7 @@ def make_model(bovw_size):
     return model
 
     
+dense_size_candidates = [[32], [64], [32, 32], [64, 64]]
 my_classifier = KerasClassifier(make_model)
 validator = GridSearchCV(my_classifier,
                          param_grid={'bovw_size':[5,10],
