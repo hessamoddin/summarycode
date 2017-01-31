@@ -16,7 +16,6 @@ from keras.layers import SimpleRNN
 from keras.initializations import normal, identity
 from keras.optimizers import RMSprop
 from keras.utils import np_utils
-from sklearn.model_selection import GridSearchCV
 import sklearn.mixture.gmm as gm
 import numpy as np
 from scipy.stats import multivariate_normal
