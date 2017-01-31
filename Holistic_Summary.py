@@ -272,7 +272,7 @@ parent_dir = os.path.split(cwd)[0]
 
 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos5/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos4/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
