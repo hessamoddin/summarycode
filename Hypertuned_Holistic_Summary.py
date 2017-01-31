@@ -274,7 +274,7 @@ parent_dir = os.path.split(cwd)[0]
 
 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos5/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos4/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -460,7 +460,7 @@ X_raw_train=X_raw[train_ind,:]
      
 
 
-def make_model(nb_epochs,bovw_size,X_train,Y_train,X_test,Y_test,hidden_units,learning_rate):
+def make_model(bovw_size):
     
     print('Evaluate IRNN...')
     model = Sequential()
@@ -477,7 +477,7 @@ def make_model(nb_epochs,bovw_size,X_train,Y_train,X_test,Y_test,hidden_units,le
 	          optimizer=rmsprop,
 	          metrics=['accuracy'])
     
-    model.fit(X_train, Y_train, nb_epochs=nb_epochs,verbose=0)
+    model.fit(X_train, Y_train)
     
     scores = model.evaluate(X_test, Y_test, verbose=0)
     print('IRNN test accuracy with BOVW:', scores[1])
@@ -499,7 +499,6 @@ def make_model(nb_epochs,bovw_size,X_train,Y_train,X_test,Y_test,hidden_units,le
     return model
 
     
-dense_size_candidates = [[32], [64], [32, 32], [64, 64]]
 my_classifier = KerasClassifier(make_model)
 validator = GridSearchCV(my_classifier,
                          param_grid={'bovw_size':[5,10],
@@ -509,7 +508,7 @@ validator = GridSearchCV(my_classifier,
                          )
 
 
-validator.fit(nb_epochs,bovw_size,X_train,Y_train,X_test,Y_test,hidden_units,learning_rate)
+validator.fit(X_train,Y_train)
 
 print('The parameters of the best model are: ')
 print(validator.best_params_)
