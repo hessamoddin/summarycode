@@ -1,37 +1,15 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Nov 26 23:09:19 2016
-
-@author: hessam
-"""
-
-###  Summarization algorithm by Hessamoddin Shafeian
-############ Load Libraries ##############
-
-from __future__ import division, print_function, absolute_import
 from __future__ import print_function
+from hyperopt import Trials, STATUS_OK, tpe
+from hyperas import optim
+from hyperas.distributions import choice, uniform
+
 from keras.models import Sequential
-from keras.layers import Dense, Activation
-from keras.layers import SimpleRNN
-from keras.initializations import normal, identity
+from keras.layers.core import Dense, Dropout, Activation
 from keras.optimizers import RMSprop
+
+from keras.datasets import mnist
 from keras.utils import np_utils
-import sklearn.mixture.gmm as gm
-import numpy as np
-from scipy.stats import multivariate_normal
-import logging
-#import cv2
-from os import listdir
-import os.path
-from os.path import isfile, join
-from os import path
-import imageio
-from skimage.transform import resize
-from skimage.color import rgb2gray
-from skimage.feature import daisy
-from sklearn.cluster import KMeans
-import math
-from random import sample
+
 
   
 
@@ -255,257 +233,248 @@ class video(object):
         self.filename = filename
 
 
-framefeature = [ feature() for i in range(1000000)]
-bovwcodebook=[ bovw() for i in range(1000000)]
-videofile=[ video() for i in range(1000000)]
 
-
-############ Access Action Category Folders ##############
-# current working directory for the code
-cwd = os.getcwd()
-# The folder at which the other folders (data) is located at
-parent_dir = os.path.split(cwd)[0] 
- 
-
-
- 
-
-
-# Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos4/')
-# Dir the folders; each representing a category of action
-dirs = os.listdir( datasetpath )
-
-i=0
-file_counter=[]
-# cat: categort of actions, also the name of the folder containing the action videos
-for cat in dirs:
-    print("Processing  %s Videos...." % (cat))    
-    if "." not in cat:
-	    cat_path=join(datasetpath,cat)
-	    onlyfiles = [f for f in listdir(cat_path) if isfile(join(cat_path, f))]
-	    for current_file in onlyfiles:
-		# This dataset contains only mp4 video clips
-	        if current_file.endswith('.mp4'):
-                 print("***")
-                 print(current_file)
-                 videopath=path.join(cat_path,current_file)
-                 # Extract raw Daisy and other features
-                 try:
-                     vid = imageio.get_reader(videopath,  'ffmpeg')
-                     num_frames=vid._meta['nframes']
-                     sampling_rate=num_frames//longest_allowed_frames+1
-                     step_percent=num_frames//10
-                     bovw_processable_len=bovw_size*(num_frames//bovw_size)
-                     # j is the frame index for the bvw processable parts of video
-                     for j in xrange(bovw_processable_len):
-                         bovw_id=i//bovw_size  # every bovw_size block of frames
-                        # print("** frame no %d **" % j)	
-                         if j%step_percent==0:
-                            print("%d %%" % (1+100*j//num_frames))	
-                            # Feature extraction
-                            # daisy_1D,surf_descs,sift_descs 			
-                         current_feature=Feature_Extractor_Fn(vid,num_frames,j)
-                         framefeature[i].filename=videopath
-                         framefeature[i].category=cat
-                         # Accumulating all raw features			
-                         framefeature[i].rawfeature=current_feature
-                         framefeature[i].bovw_id=bovw_id	
-                         framefeature[i].frame_id=i
-                         i=i+1
-                         file_counter.append(videopath)
-                         file_counter=list(set(file_counter))
-                         # update feature objects for each video
-                 except:
-                     print("error on video")
-                     print(current_file)
-                     print("***")
-print("Finished raw feature extraction!")
-
-
-# The number of all (subsampled) frames in dataset                      
-number_frames_all=i  
-
-
-# Split training and testing sets for frames
-all_frames_ind=range(number_frames_all)
-train_ind = sample(all_frames_ind,int(train_frac*number_frames_all))
-test_ind=np.delete(all_frames_ind,train_ind)
+def data():
+    framefeature = [ feature() for i in range(1000000)]
+    bovwcodebook=[ bovw() for i in range(1000000)]
+    videofile=[ video() for i in range(1000000)]
     
-
     
-
-
-
-# Construct training and testing features for codeboook generation
-training_list=[]
-testing_list=[]
-for i in train_ind:
-    training_list.append(framefeature[i].rawfeature)
-for i in test_ind:
-    testing_list.append(framefeature[i].rawfeature)
-
-bag_training=np.asarray(training_list)
-bag_testing=np.asarray(testing_list)
-
-# first method of bovw calculation: kmeans
-kmeans_codebook_size=int(math.sqrt(math.floor(len(training_list))))
- 
-
-
-# Final codebook created by Kmeans
-
- 
-kmeans_codebook=learn_kmeans_codebook(bag_training, kmeans_codebook_size)
-
-# second method of bovw calculation: GMM (fisher vector)
-
-
-
-m,c,w=estimate_gm(bag_training,kmeans_codebook_size)
-
-
-
-
-
-# The number of all bovws in dataset                      
-num_bovw_all=bovw_id+1
-# Number of all files
-unique_video_files=list(set(file_counter))
-num_videos=len(unique_video_files)
-
-
-
-
-
-# Bag of frames level
-for i in xrange(num_bovw_all):
-    current_contained_frames= [ind for ind in range(len(framefeature)) if framefeature[ind].bovw_id == i]
-    bovwcodebook[i].contained_frames=current_contained_frames
-    middle_frame=current_contained_frames[len(current_contained_frames)//2]
-    bovwcodebook[i].middle_frame=middle_frame
-    bovwcodebook[i].category=framefeature[middle_frame].category
-    bovwcodebook[i].filename=framefeature[middle_frame].filename
-    training_list=[]
-    for j in current_contained_frames:
-        training_list.append(framefeature[j].rawfeature)
-    bovwcodebook[i].code=calc_bovw(np.asarray(training_list), kmeans_codebook)
-
- 
- 
- 
-cat_list=[]
-sample_ind=0
-overall_bovw_ind=[]
-X_bovw_code=[]
-X_raw_code=[]
-X_sample_timestep=[]
-# Video file level containing BOVW
-for i in xrange(num_videos):
-     videofile[i].filename=unique_video_files[i]
-     current_contained_bovws= [ind for ind in range(len(bovwcodebook)) if bovwcodebook[ind].filename == unique_video_files[i]]
-     videofile[i].contained_bovws=current_contained_bovws
-     videofile[i].category= bovwcodebook[current_contained_bovws[len(current_contained_bovws)//2]].category
-     # Format the training and testing for TFlearn LSTM model
-     chunks_bovws_ind=list(chunks(current_contained_bovws,num_LSTMs))
-     if len(chunks_bovws_ind[len(chunks_bovws_ind)-1])<num_LSTMs:
-         chunks_bovws_ind=chunks_bovws_ind[0:len(chunks_bovws_ind)-1]
-     timestep_ind=0
-     for current_bovw_chunk_ind in chunks_bovws_ind:
-         cat_list.append(dirs.index(videofile[i].category))
-         for timestep in xrange(num_LSTMs):
-             overall_bovw_ind.append(current_bovw_chunk_ind[timestep])
-             current_bovw_code=bovwcodebook[current_bovw_chunk_ind[timestep]].code
-             X_bovw_code.append(current_bovw_code)
-             X_raw_code.append(framefeature[bovwcodebook[current_bovw_chunk_ind[timestep]].middle_frame].rawfeature)  
-             X_sample_timestep.append((sample_ind,timestep))
-         sample_ind=sample_ind+1
-          
-         
- 
-# Training samples to LSTM (num samples X num timesteps aka LSTMS X feature dim)
-X=np.zeros((sample_ind,num_LSTMs,len(X_bovw_code[0])))
-
-for i in xrange(len(overall_bovw_ind)):
-    ind1=X_sample_timestep[i][0]
-    ind2=X_sample_timestep[i][1]
-    X[ind1,ind2,:]=X_bovw_code[i]
-    
-# Training samples to LSTM (num samples X num timesteps aka LSTMS X feature dim)
-X_raw=np.zeros((sample_ind,num_LSTMs,len(X_raw_code[0])))
-
-for i in xrange(len(overall_bovw_ind)):
-    ind1=X_sample_timestep[i][0]
-    ind2=X_sample_timestep[i][1]
-    X_raw[ind1,ind2,:]=X_raw_code[i]    
-
-  
-# Split training and testing sets for frames
-all_frames_ind=range(len(cat_list))
-train_ind = sample(all_frames_ind,int(0.5*len(cat_list)))
-test_ind=np.delete(all_frames_ind,train_ind)
-
-
-nb_classes=len(dirs)
-Y = np_utils.to_categorical(np.asarray(cat_list),nb_classes )
-X_test=X[test_ind,:]   
-X_train=X[train_ind,:]    
-Y_test=Y[test_ind,:]   
-Y_train=Y[train_ind,:]  
-
-X_raw_test=X_raw[test_ind,:]   
-X_raw_train=X_raw[train_ind,:]    
+    ############ Access Action Category Folders ##############
+    # current working directory for the code
+    cwd = os.getcwd()
+    # The folder at which the other folders (data) is located at
+    parent_dir = os.path.split(cwd)[0] 
      
-print('Evaluate IRNN...')
-model = Sequential()
+    
+    
+     
+    
+    
+    # Find the data folders
+    datasetpath=join(parent_dir,'Tour20/Tour20-Videos4/')
+    # Dir the folders; each representing a category of action
+    dirs = os.listdir( datasetpath )
+    
+    i=0
+    file_counter=[]
+    # cat: categort of actions, also the name of the folder containing the action videos
+    for cat in dirs:
+	print("Processing  %s Videos...." % (cat))    
+	if "." not in cat:
+		cat_path=join(datasetpath,cat)
+		onlyfiles = [f for f in listdir(cat_path) if isfile(join(cat_path, f))]
+		for current_file in onlyfiles:
+		    # This dataset contains only mp4 video clips
+		    if current_file.endswith('.mp4'):
+		     print("***")
+		     print(current_file)
+		     videopath=path.join(cat_path,current_file)
+		     # Extract raw Daisy and other features
+		     try:
+			 vid = imageio.get_reader(videopath,  'ffmpeg')
+			 num_frames=vid._meta['nframes']
+			 sampling_rate=num_frames//longest_allowed_frames+1
+			 step_percent=num_frames//10
+			 bovw_processable_len=bovw_size*(num_frames//bovw_size)
+			 # j is the frame index for the bvw processable parts of video
+			 for j in xrange(bovw_processable_len):
+			     bovw_id=i//bovw_size  # every bovw_size block of frames
+			    # print("** frame no %d **" % j)	
+			     if j%step_percent==0:
+				print("%d %%" % (1+100*j//num_frames))	
+				# Feature extraction
+				# daisy_1D,surf_descs,sift_descs 			
+			     current_feature=Feature_Extractor_Fn(vid,num_frames,j)
+			     framefeature[i].filename=videopath
+			     framefeature[i].category=cat
+			     # Accumulating all raw features			
+			     framefeature[i].rawfeature=current_feature
+			     framefeature[i].bovw_id=bovw_id	
+			     framefeature[i].frame_id=i
+			     i=i+1
+			     file_counter.append(videopath)
+			     file_counter=list(set(file_counter))
+			     # update feature objects for each video
+		     except:
+			 print("error on video")
+			 print(current_file)
+			 print("***")
+    print("Finished raw feature extraction!")
+    
+    
+    # The number of all (subsampled) frames in dataset                      
+    number_frames_all=i  
+    
+    
+    # Split training and testing sets for frames
+    all_frames_ind=range(number_frames_all)
+    train_ind = sample(all_frames_ind,int(train_frac*number_frames_all))
+    test_ind=np.delete(all_frames_ind,train_ind)
+	
+    
+	
+    
+    
+    
+    # Construct training and testing features for codeboook generation
+    training_list=[]
+    testing_list=[]
+    for i in train_ind:
+	training_list.append(framefeature[i].rawfeature)
+    for i in test_ind:
+	testing_list.append(framefeature[i].rawfeature)
+    
+    bag_training=np.asarray(training_list)
+    bag_testing=np.asarray(testing_list)
+    
+    # first method of bovw calculation: kmeans
+    kmeans_codebook_size=int(math.sqrt(math.floor(len(training_list))))
+     
+    
+    
+    # Final codebook created by Kmeans
+    
+     
+    kmeans_codebook=learn_kmeans_codebook(bag_training, kmeans_codebook_size)
+    
+    # second method of bovw calculation: GMM (fisher vector)
+    
+    
+    
+    m,c,w=estimate_gm(bag_training,kmeans_codebook_size)
+    
+    
+    
+    
+    
+    # The number of all bovws in dataset                      
+    num_bovw_all=bovw_id+1
+    # Number of all files
+    unique_video_files=list(set(file_counter))
+    num_videos=len(unique_video_files)
+    
+    
+    
+    
+    
+    # Bag of frames level
+    for i in xrange(num_bovw_all):
+	current_contained_frames= [ind for ind in range(len(framefeature)) if framefeature[ind].bovw_id == i]
+	bovwcodebook[i].contained_frames=current_contained_frames
+	middle_frame=current_contained_frames[len(current_contained_frames)//2]
+	bovwcodebook[i].middle_frame=middle_frame
+	bovwcodebook[i].category=framefeature[middle_frame].category
+	bovwcodebook[i].filename=framefeature[middle_frame].filename
+	training_list=[]
+	for j in current_contained_frames:
+	    training_list.append(framefeature[j].rawfeature)
+	bovwcodebook[i].code=calc_bovw(np.asarray(training_list), kmeans_codebook)
+    
+     
+     
+     
+    cat_list=[]
+    sample_ind=0
+    overall_bovw_ind=[]
+    X_bovw_code=[]
+    X_raw_code=[]
+    X_sample_timestep=[]
+    # Video file level containing BOVW
+    for i in xrange(num_videos):
+	 videofile[i].filename=unique_video_files[i]
+	 current_contained_bovws= [ind for ind in range(len(bovwcodebook)) if bovwcodebook[ind].filename == unique_video_files[i]]
+	 videofile[i].contained_bovws=current_contained_bovws
+	 videofile[i].category= bovwcodebook[current_contained_bovws[len(current_contained_bovws)//2]].category
+	 # Format the training and testing for TFlearn LSTM model
+	 chunks_bovws_ind=list(chunks(current_contained_bovws,num_LSTMs))
+	 if len(chunks_bovws_ind[len(chunks_bovws_ind)-1])<num_LSTMs:
+	     chunks_bovws_ind=chunks_bovws_ind[0:len(chunks_bovws_ind)-1]
+	 timestep_ind=0
+	 for current_bovw_chunk_ind in chunks_bovws_ind:
+	     cat_list.append(dirs.index(videofile[i].category))
+	     for timestep in xrange(num_LSTMs):
+		 overall_bovw_ind.append(current_bovw_chunk_ind[timestep])
+		 current_bovw_code=bovwcodebook[current_bovw_chunk_ind[timestep]].code
+		 X_bovw_code.append(current_bovw_code)
+		 X_raw_code.append(framefeature[bovwcodebook[current_bovw_chunk_ind[timestep]].middle_frame].rawfeature)  
+		 X_sample_timestep.append((sample_ind,timestep))
+	     sample_ind=sample_ind+1
+	      
+	     
+     
+    # Training samples to LSTM (num samples X num timesteps aka LSTMS X feature dim)
+    X=np.zeros((sample_ind,num_LSTMs,len(X_bovw_code[0])))
+    
+    for i in xrange(len(overall_bovw_ind)):
+	ind1=X_sample_timestep[i][0]
+	ind2=X_sample_timestep[i][1]
+	X[ind1,ind2,:]=X_bovw_code[i]
+	
+    # Training samples to LSTM (num samples X num timesteps aka LSTMS X feature dim)
+    X_raw=np.zeros((sample_ind,num_LSTMs,len(X_raw_code[0])))
+    
+    for i in xrange(len(overall_bovw_ind)):
+	ind1=X_sample_timestep[i][0]
+	ind2=X_sample_timestep[i][1]
+	X_raw[ind1,ind2,:]=X_raw_code[i]    
+    
+      
+    # Split training and testing sets for frames
+    all_frames_ind=range(len(cat_list))
+    train_ind = sample(all_frames_ind,int(0.5*len(cat_list)))
+    test_ind=np.delete(all_frames_ind,train_ind)
+    
+    
+    nb_classes=len(dirs)
+    Y = np_utils.to_categorical(np.asarray(cat_list),nb_classes )
+    X_test=X[test_ind,:]   
+    X_train=X[train_ind,:]    
+    Y_test=Y[test_ind,:]   
+    Y_train=Y[train_ind,:]  
+    
+    X_raw_test=X_raw[test_ind,:]   
+    X_raw_train=X_raw[train_ind,:]   
+    
+    return X_train, Y_train, X_test, Y_test
 
-model.add(SimpleRNN(output_dim=hidden_units,
-                    init=lambda shape, name: normal(shape, scale=0.001, name=name),
-                    inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
-                    activation='relu',
-                    input_shape=X_train.shape[1:]))
-model.add(Dense(nb_classes))
-model.add(Activation('softmax'))
-rmsprop = RMSprop(lr=learning_rate)
-model.compile(loss='categorical_crossentropy',
-              optimizer=rmsprop,
-              metrics=['accuracy'])
 
-model.fit(X_train, Y_train, nb_epoch=nb_epochs,verbose=0)
+def model(X_train, Y_train, X_test, Y_test):
+    print('Evaluate IRNN...')
+    model = Sequential()
+    
+    model.add(SimpleRNN(output_dim=hidden_units,
+	                init=lambda shape, name: normal(shape, scale=0.001, name=name),
+	                inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
+	                activation='relu',
+	                input_shape=X_train.shape[1:]))
+    model.add(Dense(nb_classes))
+    model.add(Activation('softmax'))
+    rmsprop = RMSprop(lr=learning_rate)
+    model.compile(loss='categorical_crossentropy',
+	          optimizer=rmsprop,
+	          metrics=['accuracy'])
+    
+    #model.fit(X_train, Y_train, nb_epoch=nb_epochs,verbose=0)
+    
+    #scores = model.evaluate(X_test, Y_test, verbose=0)
+ 
+    model.fit(X_train, Y_train,
+              verbose=2,
+              validation_data=(X_test, Y_test))
+    score, acc = model.evaluate(X_test, Y_test, verbose=0)
+    print('Test accuracy:', acc)
+    return {'loss': -acc, 'status': STATUS_OK, 'model': model}
 
-scores = model.evaluate(X_test, Y_test, verbose=0)
-print('IRNN test score:', scores[0])
-print('IRNN test accuracy:', scores[1])
+if __name__ == '__main__':
 
+    X_train, Y_train, X_test, Y_test = data()
 
+    best_run, best_model = optim.minimize(model=model,
+                                          data=data,
+                                          algo=tpe.suggest,
+                                          max_evals=5,
+                                          trials=Trials())
 
-
-
-
-
-
-
-
-
-print('Evaluate IRNN...')
-model = Sequential()
-
-
-model.add(SimpleRNN(output_dim=hidden_units,
-                    init=lambda shape, name: normal(shape, scale=0.001, name=name),
-                    inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
-                    activation='relu',
-                    input_shape=X_raw_train.shape[1:]))
-model.add(Dense(nb_classes))
-model.add(Activation('softmax'))
-rmsprop = RMSprop(lr=learning_rate)
-model.compile(loss='categorical_crossentropy',
-              optimizer=rmsprop,
-              metrics=['accuracy'])
-
-model.fit(X_raw_train, Y_train, nb_epoch=nb_epochs,
-          verbose=0)
-
-scores = model.evaluate(X_raw_test, Y_test, verbose=0)
-print('IRNN test score:', scores[0])
-print('IRNN test accuracy:', scores[1])
+    print("Evalutation of best performing model:")
+    print(best_model.evaluate(X_test, Y_test))
