@@ -16,8 +16,7 @@ from keras.layers import SimpleRNN
 from keras.initializations import normal, identity
 from keras.optimizers import RMSprop
 from keras.utils import np_utils
-from keras.wrappers.scikit_learn import KerasClassifier
-from sklearn.grid_search import GridSearchCV
+from sklearn.model_selection import GridSearchCV
 import sklearn.mixture.gmm as gm
 import numpy as np
 from scipy.stats import multivariate_normal
@@ -458,78 +457,56 @@ Y_train=Y[train_ind,:]
 X_raw_test=X_raw[test_ind,:]   
 X_raw_train=X_raw[train_ind,:]    
      
+print('Evaluate IRNN...')
+model = Sequential()
+
+model.add(SimpleRNN(output_dim=hidden_units,
+                    init=lambda shape, name: normal(shape, scale=0.001, name=name),
+                    inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
+                    activation='relu',
+                    input_shape=X_train.shape[1:]))
+model.add(Dense(nb_classes))
+model.add(Activation('softmax'))
+rmsprop = RMSprop(lr=learning_rate)
+model.compile(loss='categorical_crossentropy',
+              optimizer=rmsprop,
+              metrics=['accuracy'])
+
+model.fit(X_train, Y_train, nb_epoch=nb_epochs,verbose=0)
+
+scores = model.evaluate(X_test, Y_test, verbose=0)
+print('IRNN test score:', scores[0])
+print('IRNN test accuracy:', scores[1])
 
 
-def make_model(nb_epochs,bovw_size,X_train,Y_train,X_test,Y_test,hidden_units,learning_rate):
-    
-    print('Evaluate IRNN...')
-    model = Sequential()
-    
-    model.add(SimpleRNN(output_dim=hidden_units,
-	                init=lambda shape, name: normal(shape, scale=0.001, name=name),
-	                inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
-	                activation='relu',
-	                input_shape=X_train.shape[1:]))
-    model.add(Dense(nb_classes))
-    model.add(Activation('softmax'))
-    rmsprop = RMSprop(lr=learning_rate)
-    model.compile(loss='categorical_crossentropy',
-	          optimizer=rmsprop,
-	          metrics=['accuracy'])
-    
-    model.fit(X_train, Y_train, nb_epochs=nb_epochs,verbose=0)
-    
-    scores = model.evaluate(X_test, Y_test, verbose=0)
-    print('IRNN test accuracy with BOVW:', scores[1])
-    model = Sequential()
-    
-    
-    model.add(SimpleRNN(output_dim=hidden_units,
-	                init=lambda shape, name: normal(shape, scale=0.001, name=name),
-	                inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
-	                activation='relu',
-	                input_shape=X_raw_train.shape[1:]))
-    model.add(Dense(nb_classes))
-    model.add(Activation('softmax'))
-    rmsprop = RMSprop(lr=learning_rate)
-    model.compile(loss='categorical_crossentropy',
-	          optimizer=rmsprop,
-	          metrics=['accuracy'])
-    
-    return model
-
-    
-dense_size_candidates = [[32], [64], [32, 32], [64, 64]]
-my_classifier = KerasClassifier(make_model)
-validator = GridSearchCV(my_classifier,
-                         param_grid={'bovw_size':[5,10],
-                                     'nb_epochs':nb_epochs,
-                                     'bovw_size':bovw_size,
-                                     'X_train':X_train,
-                                     'Y_train':Y_train,
-                                     'X_test':X_test,
-                                     'Y_test':Y_test,
-                                     'hidden_units':hidden_units,
-                                     'learning_rate':learning_rate,
-                         },
-                         scoring='log_loss',
-                         n_jobs=1                         
-                         )
 
 
-validator.fit(X_train, Y_train)
 
-print('The parameters of the best model are: ')
-print(validator.best_params_)
 
-# validator.best_estimator_ returns sklearn-wrapped version of best model.
-# validator.best_estimator_.model returns the (unwrapped) keras model
-best_model = validator.best_estimator_.model
-metric_names = best_model.metrics_names
-metric_values = best_model.evaluate(X_test, Y_test)
 
-for metric, value in zip(metric_names, metric_values):
-    print(metric, ': ', value)
 
-     
- 
+
+
+
+print('Evaluate IRNN...')
+model = Sequential()
+
+
+model.add(SimpleRNN(output_dim=hidden_units,
+                    init=lambda shape, name: normal(shape, scale=0.001, name=name),
+                    inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
+                    activation='relu',
+                    input_shape=X_raw_train.shape[1:]))
+model.add(Dense(nb_classes))
+model.add(Activation('softmax'))
+rmsprop = RMSprop(lr=learning_rate)
+model.compile(loss='categorical_crossentropy',
+              optimizer=rmsprop,
+              metrics=['accuracy'])
+
+model.fit(X_raw_train, Y_train, nb_epoch=nb_epochs,
+          verbose=0)
+
+scores = model.evaluate(X_raw_test, Y_test, verbose=0)
+print('IRNN test score:', scores[0])
+print('IRNN test accuracy:', scores[1])
