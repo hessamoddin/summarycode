@@ -286,7 +286,6 @@ def data():
 		     try:
 			 vid = imageio.get_reader(videopath,  'ffmpeg')
 			 num_frames=vid._meta['nframes']
-			 sampling_rate=num_frames//longest_allowed_frames+1
 			 step_percent=num_frames//10
 			 bovw_processable_len=bovw_size*(num_frames//bovw_size)
 			 # j is the frame index for the bvw processable parts of video
@@ -338,7 +337,6 @@ def data():
 	testing_list.append(framefeature[i].rawfeature)
     
     bag_training=np.asarray(training_list)
-    bag_testing=np.asarray(testing_list)
     
     # first method of bovw calculation: kmeans
     kmeans_codebook_size=int(math.sqrt(math.floor(len(training_list))))
@@ -402,7 +400,6 @@ def data():
 	 chunks_bovws_ind=list(chunks(current_contained_bovws,num_LSTMs))
 	 if len(chunks_bovws_ind[len(chunks_bovws_ind)-1])<num_LSTMs:
 	     chunks_bovws_ind=chunks_bovws_ind[0:len(chunks_bovws_ind)-1]
-	 timestep_ind=0
 	 for current_bovw_chunk_ind in chunks_bovws_ind:
 	     cat_list.append(dirs.index(videofile[i].category))
 	     for timestep in xrange(num_LSTMs):
@@ -448,10 +445,10 @@ def data():
     X_raw_test=X_raw[test_ind,:]   
     X_raw_train=X_raw[train_ind,:]   
     
-    return X_train, Y_train, X_test, Y_test
+    return X_train, Y_train, X_test, Y_test, nb_classes
 
 
-def model(X_train, Y_train, X_test, Y_test):
+def model(X_train, Y_train, X_test, Y_test,nb_classes):
     print('Evaluate IRNN...')
     model = Sequential()
     
