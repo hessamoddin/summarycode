@@ -1,11 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Nov 26 23:09:19 2016
-
-@author: hessam
-"""
-
-###  Summarization algorithm by Hessamoddin Shafeian
 ############ Load Libraries ##############
 
 from __future__ import division, print_function, absolute_import
