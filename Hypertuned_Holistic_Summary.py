@@ -46,12 +46,12 @@ clip_norm = 1.0
      
 # Define functions
 
-def create_model(neurons=1):
+def create_model(num_hidden=1,bovw_size=5):
     
     print('Evaluate IRNN...')
     model = Sequential()
     
-    model.add(SimpleRNN(output_dim=neurons,
+    model.add(SimpleRNN(output_dim=num_hidden,
 	                init=lambda shape, name: normal(shape, scale=0.001, name=name),
 	                inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
 	                activation='relu',
@@ -475,11 +475,10 @@ X_raw_train=X_raw[train_ind,:]
 
 model = KerasClassifier(build_fn=create_model, nb_epoch=100, batch_size=10, verbose=0)
 # define the grid search parameters
-neurons = [1, 5, 10, 20,30, 40,50,60]
-param_grid = dict(neurons=neurons)
+num_hidden = [10,20]
+bovw_size=[5,30]
+param_grid = dict(num_hidden=num_hidden,bovw_size=bovw_size)
 grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1)
-
-
 grid_result = grid.fit(X_train, Y_train)
 
 
