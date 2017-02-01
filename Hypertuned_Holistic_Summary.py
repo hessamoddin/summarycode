@@ -209,7 +209,7 @@ def fisher_vector(samples, means, covs, w):
 
 
 def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(120,180),step=50, radius=20):
-    if frame_no<num_frames-1: 
+    if frame_no<num_frames: 
         frame = vid.get_data(frame_no)  
         frame_resized=resize(frame, new_shape)
         frame_gray= rgb2gray(frame_resized)
