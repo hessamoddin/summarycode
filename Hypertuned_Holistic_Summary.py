@@ -362,19 +362,23 @@ for cat in dirs:
                          if j%step_percent==0:
                             print("%d %%" % (1+100*j//num_frames))	
                             # Feature extraction
-                            # daisy_1D,surf_descs,sift_descs 			
-                         current_feature=Feature_Extractor_Fn(vid,num_frames,j)
-                         framefeature[i].filename=videopath
-                         framefeature[i].category=cat
-                         # Accumulating all raw features			
-                         framefeature[i].rawfeature=current_feature
-                         framefeature[i].bovw_id=bovw_id	
-                         framefeature[i].frame_id=i
-                         i=i+1
-                         file_counter.append(videopath)
-                         file_counter=list(set(file_counter))
-                         # update feature objects for each video
-
+                            # daisy_1D,surf_descs,sift_descs 	
+                            try:
+                                current_feature=Feature_Extractor_Fn(vid,num_frames,j)
+                                framefeature[i].filename=videopath
+                                framefeature[i].category=cat
+                                # Accumulating all raw features			
+                                framefeature[i].rawfeature=current_feature
+                                framefeature[i].bovw_id=bovw_id	
+                                framefeature[i].frame_id=i
+                                i=i+1
+                                file_counter.append(videopath)
+                                file_counter=list(set(file_counter))
+                                # update feature objects for each video
+                            except:
+                                print("error on video")
+                                print(current_file)
+                                print("***")
 
 
 number_frames_all=0
@@ -512,9 +516,6 @@ Y_train=Y[train_ind,:]
 X_raw_test=X_raw[test_ind,:]   
 X_raw_train=X_raw[train_ind,:]    
      
-     
-     
-
 
 
 
