@@ -305,9 +305,9 @@ for cat in dirs:
                      num_frames=vid._meta['nframes']
                      sampling_rate=num_frames//longest_allowed_frames+1
                      step_percent=num_frames//10
-                     bovw_processable_len=bovw_size*(num_frames//bovw_size)
+                     
                      # j is the frame index for the bvw processable parts of video
-                     for j in xrange(bovw_processable_len):
+                     for j in xrange(num_frames):
                          bovw_id=i//bovw_size  # every bovw_size block of frames
                         # print("** frame no %d **" % j)	
                          if j%step_percent==0:
@@ -332,10 +332,57 @@ for cat in dirs:
 print("Finished raw feature extraction!")
 
 
-# The number of all (subsampled) frames in dataset                      
-number_frames_all=i  
+
+i=0
+file_counter=[]
+num_frames_list=[]
+
+# cat: categort of actions, also the name of the folder containing the action videos
+for cat in dirs:
+    print("Processing  %s Videos...." % (cat))    
+    if "." not in cat:
+	    cat_path=join(datasetpath,cat)
+	    onlyfiles = [f for f in listdir(cat_path) if isfile(join(cat_path, f))]
+	    for current_file in onlyfiles:
+		# This dataset contains only mp4 video clips
+	        if current_file.endswith('.mp4'):
+                 print("***")
+                 print(current_file)
+                 videopath=path.join(cat_path,current_file)
+                 # Extract raw Daisy and other features
+                 vid = imageio.get_reader(videopath,  'ffmpeg')
+                 num_frames=vid._meta['nframes']
+                 num_frames_list.append(num_frames)
+                 sampling_rate=num_frames//longest_allowed_frames+1
+                 step_percent=num_frames//10
+                 # j is the frame index for the bvw processable parts of video
+                 for j in xrange(num_frames):
+                         bovw_id=i//bovw_size  # every bovw_size block of frames
+                        # print("** frame no %d **" % j)	
+                         if j%step_percent==0:
+                            print("%d %%" % (1+100*j//num_frames))	
+                            # Feature extraction
+                            # daisy_1D,surf_descs,sift_descs 			
+                         current_feature=Feature_Extractor_Fn(vid,num_frames,j)
+                         framefeature[i].filename=videopath
+                         framefeature[i].category=cat
+                         # Accumulating all raw features			
+                         framefeature[i].rawfeature=current_feature
+                         framefeature[i].bovw_id=bovw_id	
+                         framefeature[i].frame_id=i
+                         i=i+1
+                         file_counter.append(videopath)
+                         file_counter=list(set(file_counter))
+                         # update feature objects for each video
 
 
+
+number_frames_all=0
+for i in xrange(len(file_counter)):
+    bovw_processable_len=bovw_size*(num_frames_list[i]//bovw_size)
+    number_frames_all=number_frames_all+bovw_processable_len
+    for j in xrange(bovw_processable_len,num_frames_list[i]):
+        framefeature.pop(j)
 # Split training and testing sets for frames
 all_frames_ind=range(number_frames_all)
 train_ind = sample(all_frames_ind,int(train_frac*number_frames_all))
