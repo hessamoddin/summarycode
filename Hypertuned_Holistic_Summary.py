@@ -47,7 +47,7 @@ clip_norm = 1.0
 # Define functions
 
 def create_model(num_hidden=1,bovw_size=5):
-    i=0
+    print("inside the model ..")
      
     
      
@@ -211,6 +211,9 @@ def create_model(num_hidden=1,bovw_size=5):
     model.compile(loss='categorical_crossentropy',
 	          optimizer=rmsprop,
 	          metrics=['accuracy'])
+    
+    print("outside the model ..")
+
     return model,X_train,X_test,Y_train,Y_test
 
 def learn_kmeans_codebook(X, codebook_size=1000, seed=None):
@@ -487,14 +490,10 @@ print("Finished raw feature extraction!")
 
 
      
-     
 
 
-
-
-
-
-model = KerasClassifier(build_fn=create_model, nb_epoch=100, batch_size=10, verbose=0)
+print("model creation ...")
+model,X_train,X_test,Y_train,Y_test = KerasClassifier(build_fn=create_model, nb_epoch=100, batch_size=10, verbose=0)
 # define the grid search parameters
 num_hidden = [10,20]
 bovw_size=[5,30]
