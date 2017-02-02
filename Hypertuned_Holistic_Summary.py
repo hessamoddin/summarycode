@@ -287,6 +287,7 @@ dirs = os.listdir( datasetpath )
 
 i=0
 file_counter=[]
+num_frames_list=[]
 # cat: categort of actions, also the name of the folder containing the action videos
 for cat in dirs:
     print("Processing  %s Videos...." % (cat))    
@@ -303,6 +304,7 @@ for cat in dirs:
                  try:
                      vid = imageio.get_reader(videopath,  'ffmpeg')
                      num_frames=vid._meta['nframes']
+                     num_frames_list.append(num_frames)
                      sampling_rate=num_frames//longest_allowed_frames+1
                      step_percent=num_frames//10
                      
@@ -324,6 +326,7 @@ for cat in dirs:
                          i=i+1
                          file_counter.append(videopath)
                          file_counter=list(set(file_counter))
+                         
                          # update feature objects for each video
                  except:
                      print("error on video")
@@ -334,8 +337,7 @@ print("Finished raw feature extraction!")
 
 
 i=0
-file_counter=[]
-num_frames_list=[]
+ 
 
  
 
@@ -353,23 +355,30 @@ train_ind = sample(all_frames_ind,int(train_frac*number_frames_all))
 test_ind=np.delete(all_frames_ind,train_ind)
     
 
-    
-
+ 
 
 
 # Construct training and testing features for codeboook generation
 training_list=[]
 testing_list=[]
+
 for i in train_ind:
     training_list.append(framefeature[i].rawfeature)
+ 
+    
 for i in test_ind:
     testing_list.append(framefeature[i].rawfeature)
+ 
+ 
+bag_training=np.vstack(training_list) 
 
-bag_training=np.asarray(training_list)
-bag_testing=np.asarray(testing_list)
+#bag_training=np.asarray(training_list)
+#bag_testing=np.asarray(testing_list)
 
+ 
+ 
 # first method of bovw calculation: kmeans
-kmeans_codebook_size=int(math.sqrt(math.floor(len(training_list))))
+kmeans_codebook_size=int(math.sqrt(math.floor(len(train_ind))))
  
 
 
@@ -476,11 +485,7 @@ Y_train=Y[train_ind,:]
 X_raw_test=X_raw[test_ind,:]   
 X_raw_train=X_raw[train_ind,:]    
      
-     
-     
-
-
-
+      
 
 
 
