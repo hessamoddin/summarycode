@@ -47,6 +47,155 @@ clip_norm = 1.0
 # Define functions
 
 def create_model(num_hidden=1,bovw_size=5):
+    i=0
+     
+    
+     
+    
+    
+    
+    number_frames_all=0
+    for i in xrange(len(file_counter)):
+	bovw_processable_len=bovw_size*(num_frames_list[i]//bovw_size)
+	number_frames_all=number_frames_all+bovw_processable_len
+	for j in xrange(bovw_processable_len,num_frames_list[i]):
+	    framefeature.pop(j)
+    # Split training and testing sets for frames
+    all_frames_ind=range(number_frames_all)
+    train_ind = sample(all_frames_ind,int(train_frac*number_frames_all))
+    test_ind=np.delete(all_frames_ind,train_ind)
+	
+    
+     
+    
+    
+    # Construct training and testing features for codeboook generation
+    training_list=[]
+    testing_list=[]
+    
+    for i in train_ind:
+	training_list.append(framefeature[i].rawfeature)
+     
+	
+    for i in test_ind:
+	testing_list.append(framefeature[i].rawfeature)
+     
+     
+    bag_training=np.vstack(training_list) 
+    
+    #bag_training=np.asarray(training_list)
+    #bag_testing=np.asarray(testing_list)
+    
+     
+     
+    # first method of bovw calculation: kmeans
+    kmeans_codebook_size=int(math.sqrt(math.floor(len(train_ind))))
+     
+    
+    
+    # Final codebook created by Kmeans
+    
+     
+    kmeans_codebook=learn_kmeans_codebook(bag_training, kmeans_codebook_size)
+    
+    # second method of bovw calculation: GMM (fisher vector)
+    
+    
+    
+    m,c,w=estimate_gm(bag_training,kmeans_codebook_size)
+    
+    
+    
+    
+    
+    # The number of all bovws in dataset                      
+    num_bovw_all=bovw_id+1
+    # Number of all files
+    unique_video_files=list(set(file_counter))
+    num_videos=len(unique_video_files)
+    
+    
+    
+    
+    
+    # Bag of frames level
+    for i in xrange(num_bovw_all):
+	current_contained_frames= [ind for ind in range(len(framefeature)) if framefeature[ind].bovw_id == i]
+	bovwcodebook[i].contained_frames=current_contained_frames
+	middle_frame=current_contained_frames[len(current_contained_frames)//2]
+	bovwcodebook[i].middle_frame=middle_frame
+	bovwcodebook[i].category=framefeature[middle_frame].category
+	bovwcodebook[i].filename=framefeature[middle_frame].filename
+	training_list=[]
+	for j in current_contained_frames:
+	    training_list.append(framefeature[j].rawfeature)
+	bovwcodebook[i].code=calc_bovw(np.asarray(training_list), kmeans_codebook)
+    
+     
+     
+     
+    cat_list=[]
+    sample_ind=0
+    overall_bovw_ind=[]
+    X_bovw_code=[]
+    X_raw_code=[]
+    X_sample_timestep=[]
+    # Video file level containing BOVW
+    for i in xrange(num_videos):
+	 videofile[i].filename=unique_video_files[i]
+	 current_contained_bovws= [ind for ind in range(len(bovwcodebook)) if bovwcodebook[ind].filename == unique_video_files[i]]
+	 videofile[i].contained_bovws=current_contained_bovws
+	 videofile[i].category= bovwcodebook[current_contained_bovws[len(current_contained_bovws)//2]].category
+	 # Format the training and testing for TFlearn LSTM model
+	 chunks_bovws_ind=list(chunks(current_contained_bovws,num_LSTMs))
+	 if len(chunks_bovws_ind[len(chunks_bovws_ind)-1])<num_LSTMs:
+	     chunks_bovws_ind=chunks_bovws_ind[0:len(chunks_bovws_ind)-1]
+	 timestep_ind=0
+	 for current_bovw_chunk_ind in chunks_bovws_ind:
+	     cat_list.append(dirs.index(videofile[i].category))
+	     for timestep in xrange(num_LSTMs):
+		 overall_bovw_ind.append(current_bovw_chunk_ind[timestep])
+		 current_bovw_code=bovwcodebook[current_bovw_chunk_ind[timestep]].code
+		 X_bovw_code.append(current_bovw_code)
+		 X_raw_code.append(framefeature[bovwcodebook[current_bovw_chunk_ind[timestep]].middle_frame].rawfeature)  
+		 X_sample_timestep.append((sample_ind,timestep))
+	     sample_ind=sample_ind+1
+	      
+	     
+     
+    # Training samples to LSTM (num samples X num timesteps aka LSTMS X feature dim)
+    X=np.zeros((sample_ind,num_LSTMs,len(X_bovw_code[0])))
+    
+    for i in xrange(len(overall_bovw_ind)):
+	ind1=X_sample_timestep[i][0]
+	ind2=X_sample_timestep[i][1]
+	X[ind1,ind2,:]=X_bovw_code[i]
+	
+    # Training samples to LSTM (num samples X num timesteps aka LSTMS X feature dim)
+    X_raw=np.zeros((sample_ind,num_LSTMs,len(X_raw_code[0])))
+    
+    for i in xrange(len(overall_bovw_ind)):
+	ind1=X_sample_timestep[i][0]
+	ind2=X_sample_timestep[i][1]
+	X_raw[ind1,ind2,:]=X_raw_code[i]    
+    
+      
+    # Split training and testing sets for frames
+    all_frames_ind=range(len(cat_list))
+    train_ind = sample(all_frames_ind,int(0.5*len(cat_list)))
+    test_ind=np.delete(all_frames_ind,train_ind)
+    
+    
+    nb_classes=len(dirs)
+    Y = np_utils.to_categorical(np.asarray(cat_list),nb_classes )
+    X_test=X[test_ind,:]   
+    X_train=X[train_ind,:]    
+    Y_test=Y[test_ind,:]   
+    Y_train=Y[train_ind,:]  
+    
+    X_raw_test=X_raw[test_ind,:]   
+    X_raw_train=X_raw[train_ind,:]    
+    
     
     print('Evaluate IRNN...')
     model = Sequential()
@@ -336,156 +485,12 @@ print("Finished raw feature extraction!")
 
 
 
-i=0
- 
 
- 
-
-
-
-number_frames_all=0
-for i in xrange(len(file_counter)):
-    bovw_processable_len=bovw_size*(num_frames_list[i]//bovw_size)
-    number_frames_all=number_frames_all+bovw_processable_len
-    for j in xrange(bovw_processable_len,num_frames_list[i]):
-        framefeature.pop(j)
-# Split training and testing sets for frames
-all_frames_ind=range(number_frames_all)
-train_ind = sample(all_frames_ind,int(train_frac*number_frames_all))
-test_ind=np.delete(all_frames_ind,train_ind)
-    
-
- 
-
-
-# Construct training and testing features for codeboook generation
-training_list=[]
-testing_list=[]
-
-for i in train_ind:
-    training_list.append(framefeature[i].rawfeature)
- 
-    
-for i in test_ind:
-    testing_list.append(framefeature[i].rawfeature)
- 
- 
-bag_training=np.vstack(training_list) 
-
-#bag_training=np.asarray(training_list)
-#bag_testing=np.asarray(testing_list)
-
- 
- 
-# first method of bovw calculation: kmeans
-kmeans_codebook_size=int(math.sqrt(math.floor(len(train_ind))))
- 
-
-
-# Final codebook created by Kmeans
-
- 
-kmeans_codebook=learn_kmeans_codebook(bag_training, kmeans_codebook_size)
-
-# second method of bovw calculation: GMM (fisher vector)
-
-
-
-m,c,w=estimate_gm(bag_training,kmeans_codebook_size)
-
-
-
-
-
-# The number of all bovws in dataset                      
-num_bovw_all=bovw_id+1
-# Number of all files
-unique_video_files=list(set(file_counter))
-num_videos=len(unique_video_files)
-
-
-
-
-
-# Bag of frames level
-for i in xrange(num_bovw_all):
-    current_contained_frames= [ind for ind in range(len(framefeature)) if framefeature[ind].bovw_id == i]
-    bovwcodebook[i].contained_frames=current_contained_frames
-    middle_frame=current_contained_frames[len(current_contained_frames)//2]
-    bovwcodebook[i].middle_frame=middle_frame
-    bovwcodebook[i].category=framefeature[middle_frame].category
-    bovwcodebook[i].filename=framefeature[middle_frame].filename
-    training_list=[]
-    for j in current_contained_frames:
-        training_list.append(framefeature[j].rawfeature)
-    bovwcodebook[i].code=calc_bovw(np.asarray(training_list), kmeans_codebook)
-
- 
- 
- 
-cat_list=[]
-sample_ind=0
-overall_bovw_ind=[]
-X_bovw_code=[]
-X_raw_code=[]
-X_sample_timestep=[]
-# Video file level containing BOVW
-for i in xrange(num_videos):
-     videofile[i].filename=unique_video_files[i]
-     current_contained_bovws= [ind for ind in range(len(bovwcodebook)) if bovwcodebook[ind].filename == unique_video_files[i]]
-     videofile[i].contained_bovws=current_contained_bovws
-     videofile[i].category= bovwcodebook[current_contained_bovws[len(current_contained_bovws)//2]].category
-     # Format the training and testing for TFlearn LSTM model
-     chunks_bovws_ind=list(chunks(current_contained_bovws,num_LSTMs))
-     if len(chunks_bovws_ind[len(chunks_bovws_ind)-1])<num_LSTMs:
-         chunks_bovws_ind=chunks_bovws_ind[0:len(chunks_bovws_ind)-1]
-     timestep_ind=0
-     for current_bovw_chunk_ind in chunks_bovws_ind:
-         cat_list.append(dirs.index(videofile[i].category))
-         for timestep in xrange(num_LSTMs):
-             overall_bovw_ind.append(current_bovw_chunk_ind[timestep])
-             current_bovw_code=bovwcodebook[current_bovw_chunk_ind[timestep]].code
-             X_bovw_code.append(current_bovw_code)
-             X_raw_code.append(framefeature[bovwcodebook[current_bovw_chunk_ind[timestep]].middle_frame].rawfeature)  
-             X_sample_timestep.append((sample_ind,timestep))
-         sample_ind=sample_ind+1
-          
-         
- 
-# Training samples to LSTM (num samples X num timesteps aka LSTMS X feature dim)
-X=np.zeros((sample_ind,num_LSTMs,len(X_bovw_code[0])))
-
-for i in xrange(len(overall_bovw_ind)):
-    ind1=X_sample_timestep[i][0]
-    ind2=X_sample_timestep[i][1]
-    X[ind1,ind2,:]=X_bovw_code[i]
-    
-# Training samples to LSTM (num samples X num timesteps aka LSTMS X feature dim)
-X_raw=np.zeros((sample_ind,num_LSTMs,len(X_raw_code[0])))
-
-for i in xrange(len(overall_bovw_ind)):
-    ind1=X_sample_timestep[i][0]
-    ind2=X_sample_timestep[i][1]
-    X_raw[ind1,ind2,:]=X_raw_code[i]    
-
-  
-# Split training and testing sets for frames
-all_frames_ind=range(len(cat_list))
-train_ind = sample(all_frames_ind,int(0.5*len(cat_list)))
-test_ind=np.delete(all_frames_ind,train_ind)
-
-
-nb_classes=len(dirs)
-Y = np_utils.to_categorical(np.asarray(cat_list),nb_classes )
-X_test=X[test_ind,:]   
-X_train=X[train_ind,:]    
-Y_test=Y[test_ind,:]   
-Y_train=Y[train_ind,:]  
-
-X_raw_test=X_raw[test_ind,:]   
-X_raw_train=X_raw[train_ind,:]    
      
-      
+     
+
+
+
 
 
 
