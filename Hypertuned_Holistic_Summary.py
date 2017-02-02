@@ -211,7 +211,7 @@ def create_model(num_hidden=1,bovw_size=5):
     model.compile(loss='categorical_crossentropy',
 	          optimizer=rmsprop,
 	          metrics=['accuracy'])
-    return model
+    return model,X_train,X_test,Y_train,Y_test
 
 def learn_kmeans_codebook(X, codebook_size=1000, seed=None):
     """Learn a codebook.
