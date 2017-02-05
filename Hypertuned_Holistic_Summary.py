@@ -46,7 +46,7 @@ clip_norm = 1.0
      
 # Define functions
 
-def create_model(num_hidden=1,bovw_size=5):
+def create_model(num_hidden=1):
     
     print('Evaluate IRNN...')
     model = Sequential()
@@ -344,13 +344,15 @@ i=0
 
 
 number_frames_all=0
+num_processable_frames_list=[]
 for i in xrange(len(file_counter)):
     bovw_processable_len=bovw_size*(num_frames_list[i]//bovw_size)
+    num_processable_frames_list.append(bovw_processable_len)
     number_frames_all=number_frames_all+bovw_processable_len
     for j in xrange(bovw_processable_len,num_frames_list[i]):
         framefeature.pop(j)
 # Split training and testing sets for frames
-all_frames_ind=range(number_frames_all)
+all_frames_ind=range(number_frames_all-1)
 train_ind = sample(all_frames_ind,int(train_frac*number_frames_all))
 test_ind=np.delete(all_frames_ind,train_ind)
     
@@ -369,13 +371,15 @@ for i in train_ind:
 for i in test_ind:
     testing_list.append(framefeature[i].rawfeature)
  
- 
-bag_training=np.vstack(training_list) 
-
-#bag_training=np.asarray(training_list)
-#bag_testing=np.asarray(testing_list)
-
- 
+r=len(training_list)
+c=training_list[0].size
+bag_training=np.zeros((r,c))
+for i in xrange(r):
+    current_arr=np.asarray(training_list[i])
+    for j in xrange(c):
+        bag_training[i,j]=current_arr[j]
+#bag_training=np.vstack(training_list) 
+  
  
 # first method of bovw calculation: kmeans
 kmeans_codebook_size=int(math.sqrt(math.floor(len(train_ind))))
@@ -491,9 +495,8 @@ X_raw_train=X_raw[train_ind,:]
 
 model = KerasClassifier(build_fn=create_model, nb_epoch=100, batch_size=10, verbose=0)
 # define the grid search parameters
-num_hidden = [10,20,30,40,50]
-bovw_size=[5,15,30]
-param_grid = dict(num_hidden=num_hidden,bovw_size=bovw_size)
+num_hidden = [10,20,30,40]
+param_grid = dict(num_hidden=num_hidden)
 grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1)
 grid_result = grid.fit(X_train, Y_train)
 
