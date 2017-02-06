@@ -168,8 +168,7 @@ def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=80, ra
         frame_gray= rgb2gray(frame_resized)
         daisy_desc = daisy(frame_gray,step=step, radius=radius)
         daisy_1D=np.ravel(daisy_desc)
-        print(daisy_1D.shape)
-        
+         
         """Extract Daisy feature for a patch from the frame of video """
         step_glove=int(step/10)
         radius_glove=int(radius/10)
@@ -323,9 +322,9 @@ for cat in dirs:
                          framefeature[i].bovw_id=bovw_id	#bag number in the video for this frame
                          framefeature[i].frame_id=i # frame number in the video 
                          framefeature[i].griddedfeature=current_grid_feature # gridded Daisy feature for this frame
-                         print(i)
-                         print(bovw_id)
-                         print(j*subsampling_rate)
+                        # print(i)
+                         #print(bovw_id)
+                         #print(j*subsampling_rate)
                          i=i+1
                          file_counter.append(videopath)
                          # Track record of which video does this frame belong toin a list
