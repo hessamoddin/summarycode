@@ -34,8 +34,8 @@ import scipy.sparse as sp
 """       
 Parameters
 """
-subsampling_rate=10
-bovw_size=100
+subsampling_rate=2
+bovw_size=10
 num_LSTMs=10
 train_frac=0.5
 LSTM_overlap=0.25
@@ -310,8 +310,8 @@ for cat in dirs:
                      for j in xrange(bovw_processable_len):
                          bovw_id=(subsampling_rate*i)//bovw_size  # every bovw_size block of frames
                         # print("** frame no %d **" % j)	
-                         print(j)
-                         print("%d %%" % (1+100*j//num_frames))	
+                         print(j*subsampling_rate)
+                         print("%d %%" % (1+100*subsampling_rate*j//num_frames))	
                         
                             # Feature extraction
                             # daisy_1D,surf_descs,sift_descs 		
