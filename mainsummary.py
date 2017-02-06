@@ -269,7 +269,7 @@ cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos2/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos4/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -310,8 +310,9 @@ for cat in dirs:
                      for j in xrange(bovw_processable_len):
                          bovw_id=(subsampling_rate*i)//bovw_size  # every bovw_size block of frames
                         # print("** frame no %d **" % j)	
-                         if j%step_percent==0:
-                            print("%d %%" % (1+100*j//num_frames))	
+                         print(j)
+                         print("%d %%" % (1+100*j//num_frames))	
+                        
                             # Feature extraction
                             # daisy_1D,surf_descs,sift_descs 		
                          # extract dausy features: for the whole frame or grid-wise for each frame
