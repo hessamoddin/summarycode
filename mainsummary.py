@@ -35,7 +35,7 @@ import scipy.sparse as sp
 Parameters
 """
 subsampling_rate=2
-bovw_size=10
+bovw_size=20
 num_LSTMs=10
 train_frac=0.5
 LSTM_overlap=0.25
@@ -170,10 +170,10 @@ def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=80, ra
         daisy_1D=np.ravel(daisy_desc)
          
         """Extract Daisy feature for a patch from the frame of video """
-        step_glove=int(step/10)
-        radius_glove=int(radius/10)
-        patch_shape_x=int(new_shape[0]/10)
-        patch_shape_y=int(new_shape[1]/10)
+        step_glove=int(step/2)
+        radius_glove=int(radius/2)
+        patch_shape_x=int(new_shape[0]/2)
+        patch_shape_y=int(new_shape[1]/2)
 
         patchs_arr = view_as_blocks(frame_gray, (patch_shape_x,patch_shape_y))
         patch_num_row=patchs_arr.shape[0]
@@ -269,7 +269,7 @@ cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos4/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos3/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -371,7 +371,7 @@ for i in test_ind_1:
 
 
 
- 
+print("overall_gridded_training") 
 # Finalizing the NLP kmeans training set for gridden Daisy feature and 
 # transforming it through Glove
 overall_gridded_training=[]
@@ -398,7 +398,7 @@ for sample_id in xrange(num_samples):
 
 
 
-
+print("overall_holisitc_training")
 # Finalizing the kmeans training set 
 overall_holisitc_training=np.asarray(overall_holisitc_training)
 overall_gridded_training=np.asarray(overall_gridded_training)
@@ -407,6 +407,8 @@ overall_gridded_training=np.asarray(overall_gridded_training)
 kmeans_codebook_size_gridded=int(math.sqrt(math.floor(len(overall_gridded_training))))
 kmeans_codebook_size_holistic=int(math.sqrt(math.floor(len(overall_holisitc_training))))
 
+
+print("learn_kmeans_codebook")
 # Final codebook created by Kmeans
 kmeans_codebook_holistic=learn_kmeans_codebook(overall_holisitc_training, kmeans_codebook_size_holistic)
 kmeans_codebook_gridded=learn_kmeans_codebook(overall_gridded_training, kmeans_codebook_size_gridded)
@@ -435,6 +437,10 @@ bovwcodebook[i].code:
 
 
 """
+
+
+print("for i in xrange(num_bovw_all)")
+
 for i in xrange(num_bovw_all):
     # which frames does the current Bovw contain
     current_contained_frames= [ind for ind in range(len(framefeature)) if framefeature[ind].bovw_id == i]
@@ -482,6 +488,8 @@ X_sample_timestep=[]
 """
 Video file level containing BOVW
 """
+
+print("Video file level containing BOVW")
 for i in xrange(num_videos):
      videofile[i].filename=unique_video_files[i]
      current_contained_bovws= [ind for ind in range(len(bovwcodebook)) if bovwcodebook[ind].filename == unique_video_files[i]]
@@ -519,6 +527,7 @@ for i in xrange(len(overall_bovw_ind)):
     ind1=X_sample_timestep[i][0]
     ind2=X_sample_timestep[i][1]
     X_raw[ind1,ind2,:]=X_raw_code[i]    
+
 
   
 # Split training and testing sets for frames
@@ -560,7 +569,7 @@ model.compile(loss='categorical_crossentropy',
               optimizer=rmsprop,
               metrics=['accuracy'])
 
-model.fit(X_train, Y_train, nb_epoch=nb_epochs,verbose=1)
+model.fit(X_train, Y_train, nb_epoch=nb_epochs,verbose=0)
 
 scores = model.evaluate(X_test, Y_test, verbose=0)
 print('IRNN test score:', scores[0])
