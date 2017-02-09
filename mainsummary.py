@@ -46,7 +46,7 @@ hidden_units = 50
 learning_rate = 1e-6
 clip_norm = 1.0
 new_shape,step,radius=(120,180),50,20 # for Daisy feaure
-N=3     
+     
      
 """       
 Define functions
@@ -160,7 +160,7 @@ def fisher_vector(samples, means, covs, w):
 
  
 
-def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=80, radius=45,N=5):
+def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=80, radius=45):
     """Extract Daisy feature for a frame of video """
     if frame_no<num_frames-1: 
         frame = vid.get_data(frame_no)  
@@ -170,10 +170,10 @@ def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=80, ra
         daisy_1D=np.ravel(daisy_desc)
          
         """Extract Daisy feature for a patch from the frame of video """
-        step_glove=int(step/N)
-        radius_glove=int(radius/N)
-        patch_shape_x=int(new_shape[0]/N)
-        patch_shape_y=int(new_shape[1]/N)
+        step_glove=int(step/2)
+        radius_glove=int(radius/2)
+        patch_shape_x=int(new_shape[0]/2)
+        patch_shape_y=int(new_shape[1]/2)
 
         patchs_arr = view_as_blocks(frame_gray, (patch_shape_x,patch_shape_y))
         patch_num_row=patchs_arr.shape[0]
@@ -308,14 +308,14 @@ for cat in dirs:
                      bovw_processable_len=subsampling_rate*(bovw_processable_len//(subsampling_rate))
                       # j is the frame index for the bvw processable parts of video
                      for j in xrange(bovw_processable_len):
-                         bovw_id=(subsampling_rate*i)//bovw_size  # every bovw_size block of frames
+                         bovw_id=(i)//bovw_size  # every bovw_size block of frames
                         # print("** frame no %d **" % j)	
                          print("%d %%" % (1+100*subsampling_rate*j//num_frames))	
                         
                             # Feature extraction
                             # daisy_1D,surf_descs,sift_descs 		
                          # extract dausy features: for the whole frame or grid-wise for each frame
-                         current_grid_feature,current_frame_feature=Feature_Extractor_Fn(vid,num_frames,j*subsampling_rate,N) 
+                         current_grid_feature,current_frame_feature=Feature_Extractor_Fn(vid,num_frames,j*subsampling_rate) 
                          framefeature[i].filename=videopath # take the name&path ofj the video containing the fraame
                          framefeature[i].category=cat # take the category of the current video 
                          framefeature[i].rawfeature=current_frame_feature #daisy feature for the whole video
@@ -441,44 +441,58 @@ bovwcodebook[i].code:
 
 print("for i in xrange(num_bovw_all)")
 
+
+num_frames_overall=0
+num_bags_overall=0
+print(kmeans_codebook_size_gridded)
+print(bovwcodebook[i].gridded_code)
+print(framefeature[j].gridded_code)
 for i in xrange(num_bovw_all):
     # which frames does the current Bovw contain
     current_contained_frames= [ind for ind in range(len(framefeature)) if framefeature[ind].bovw_id == i]
-    bovwcodebook[i].contained_frames=current_contained_frames
-    # take the middle frame of the bag of visual words as its examplar
-    middle_frame=current_contained_frames[len(current_contained_frames)//2]
-    bovwcodebook[i].middle_frame=middle_frame
-    # categotry of the current bag = category of its middle frame= 
-    #category of all frames in the bag= category of the video containing the bag
-    bovwcodebook[i].category=framefeature[middle_frame].category
-    bovwcodebook[i].filename=framefeature[middle_frame].filename
-    training_list_holistic=[]
-    for j in current_contained_frames:
-        training_list_holistic.append(framefeature[j].rawfeature)
-    bovwcodebook[i].code=calc_bovw(np.asarray(training_list_holistic), kmeans_codebook_holistic)
+    
+    
+    if len(current_contained_frames)==bovw_size:
+         num_bags_overall=num_bags_overall+1
+         num_frames_overall=num_frames_overall+len(current_contained_frames)
+        
+     
+         bovwcodebook[i].contained_frames=current_contained_frames
 
-    training_gridded_intrabag=[]
-    gridded_words_intrabag=[]
-    for j in current_contained_frames:
-        current_gridded_frame_feature=framefeature[j].griddedfeature
-        gridded_words_intraframe=np.zeros((num_row,num_col))
-        training_gridded_intraframe=[]
-        for row_id in xrange(num_row):
-            for col_id in xrange(num_col):
-                current_grid_feature=current_gridded_frame_feature[row_id,col_id,:].reshape(1,-1)
-                current_grid_word = kmeans_codebook_gridded.predict(current_grid_feature)
-                # Map the gridded daisy feature to a word
-                gridded_words_intraframe[row_id,col_id]=current_grid_word[0]
-                #temp=calc_bovw(np.transpose(current_grid_feature), kmeans_codebook_gridded)
-                training_gridded_intraframe.append(current_grid_feature)
-                training_gridded_intrabag.append(current_grid_feature)
-                framefeature[j].gridded_code=calc_bovw(np.squeeze(np.asarray(training_gridded_intraframe),axis=(1,)), kmeans_codebook_gridded)  #saves gridded Bovw for the whole frame
-        gridded_words_intrabag.append(np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),))) # each row contains words for each containing frame
+        	# take the middle frame of the bag of visual words as its examplar
+         middle_frame=current_contained_frames[len(current_contained_frames)//2]
+         bovwcodebook[i].middle_frame=middle_frame
+         # categotry of the current bag = category of its middle frame= 
+         #category of all frames in the bag= category of the video containing the bag
+         bovwcodebook[i].category=framefeature[middle_frame].category
+         bovwcodebook[i].filename=framefeature[middle_frame].filename
+         training_list_holistic=[]
+         for j in current_contained_frames:
+             training_list_holistic.append(framefeature[j].rawfeature)
+     
+         bovwcodebook[i].code=calc_bovw(np.asarray(training_list_holistic), kmeans_codebook_holistic)
+
+         training_gridded_intrabag=[]
+         gridded_words_intrabag=[]
+         for j in current_contained_frames:
+             current_gridded_frame_feature=framefeature[j].griddedfeature
+             gridded_words_intraframe=np.zeros((num_row,num_col))
+             training_gridded_intraframe=[]
+             for row_id in xrange(num_row):
+                 for col_id in xrange(num_col):
+                     current_grid_feature=current_gridded_frame_feature[row_id,col_id,:].reshape(1,-1)
+                     current_grid_word = kmeans_codebook_gridded.predict(current_grid_feature)
+                     # Map the gridded daisy feature to a word
+                     gridded_words_intraframe[row_id,col_id]=current_grid_word[0]
+                     #temp=calc_bovw(np.transpose(current_grid_feature), kmeans_codebook_gridded)
+                     training_gridded_intraframe.append(current_grid_feature)
+                     training_gridded_intrabag.append(current_grid_feature)
+                     framefeature[j].gridded_code=calc_bovw(np.squeeze(np.asarray(training_gridded_intraframe),axis=(1,)), kmeans_codebook_gridded)  #saves gridded Bovw for the whole frame
+         gridded_words_intrabag.append(np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),))) # each row contains words for each containing frame
         
     bovwcodebook[i].gridded_code=calc_bovw(np.squeeze(np.asarray(training_gridded_intrabag),axis=(1,)), kmeans_codebook_gridded)  #saves gridded Bovw for the whole bag     
-    bovwcodebook[i].words=np.asarray(gridded_words_intrabag) # all words across all frames wihin the bag i          
-                
- 
+    bovwcodebook[i].words=np.asarray(gridded_words_intrabag) # all words across all frames wihin the bag i           
+    
 cat_list=[]
 sample_ind=0
 overall_bovw_ind=[]
