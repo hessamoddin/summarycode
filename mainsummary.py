@@ -46,11 +46,101 @@ hidden_units = 50
 learning_rate = 1e-6
 clip_norm = 1.0
 new_shape,step,radius=(120,180),50,20 # for Daisy feaure
-     
+embedding_size=100     
      
 """       
 Define functions
 """
+
+def embedding_func(gridded_words_overall,embedding_size):
+    
+    """***************
+     GLOVE for Video
+     ***************"""
+     
+    
+    glove_bins=np.squeeze(np.asarray(gridded_words_overall),axis=(1,))
+    glove_shape=glove_bins.shape
+    glove_weights=np.ones((glove_shape))
+    #bovw_shape=(3,5)
+    #bovw_bins = np.random.randint(9,13, size=bovw_shape)
+    #bovw_weights = np.random.randint(2, size=bovw_shape)
+    
+    
+    
+    
+    #print('Bovw bins')
+    #print(bovw_bins)
+    #print('Bovw weights')
+    #print(bovw_weights)
+     
+    
+    
+    
+    
+    dictionary = {}
+    rows = []
+    cols = []
+    data = array.array('f')
+     
+    k=0 
+    #print(bovw_bins)
+    
+    for frame in glove_bins:
+            for i, first_word in enumerate(frame):
+                first_word_idx = dictionary.setdefault(first_word,
+                                                       len(dictionary))
+                w1=glove_weights[k,i]                                    
+                for j, second_word in enumerate(frame):
+                    second_word_idx = dictionary.setdefault(second_word,
+                                                            len(dictionary))
+                    w2=glove_weights[k,j]            
+                    distance = 1
+                    w=w1*w2
+    
+                    if first_word_idx == second_word_idx:
+                        pass
+                    elif first_word_idx < second_word_idx:
+                        rows.append(first_word_idx)
+    
+                        cols.append(second_word_idx)
+                        data.append(np.double(w*np.double(1.0) / distance))
+                    else:
+                        rows.append(second_word_idx)
+                        cols.append(first_word_idx)
+                        data.append(np.double(w*np.double(1.0) / distance))
+            k=k+1
+         
+                            
+     
+    
+    x=sp.coo_matrix((data, (rows, cols)),
+                             shape=(len(dictionary),
+                                    len(dictionary)),
+                             dtype=np.double).tocsr().tocoo()      
+    print(dictionary)     
+    dic_keys=dictionary.keys()
+    dic_values=dictionary.values()      
+ 
+    
+                  
+    xarr=x.toarray()                         
+    xarr/=np.amax(xarr)
+    print("coocurance matrix")
+    print(xarr)
+    xsparse=sp.coo_matrix(xarr)   
+    
+    glove_model = Glove(no_components=embedding_size, learning_rate=0.05)
+    glove_model.fit(xsparse,
+                        epochs=500,
+                        no_threads=2)
+    
+    
+    new_word_representation=glove_model.word_vectors
+
+
+    return new_word_representation,dic_keys,dic_values
+    
 
 def learn_kmeans_codebook(X, codebook_size=1000, seed=None):
     """ Learn a codebook.
@@ -444,9 +534,7 @@ print("for i in xrange(num_bovw_all)")
 
 num_frames_overall=0
 num_bags_overall=0
-print(kmeans_codebook_size_gridded)
-print(bovwcodebook[i].gridded_code)
-print(framefeature[j].gridded_code)
+gridded_words_overall=[]  # All
 for i in xrange(num_bovw_all):
     # which frames does the current Bovw contain
     current_contained_frames= [ind for ind in range(len(framefeature)) if framefeature[ind].bovw_id == i]
@@ -489,10 +577,18 @@ for i in xrange(num_bovw_all):
                      training_gridded_intrabag.append(current_grid_feature)
                      framefeature[j].gridded_code=calc_bovw(np.squeeze(np.asarray(training_gridded_intraframe),axis=(1,)), kmeans_codebook_gridded)  #saves gridded Bovw for the whole frame
          gridded_words_intrabag.append(np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),))) # each row contains words for each containing frame
+         gridded_words_overall.append(gridded_words_intrabag)
         
     bovwcodebook[i].gridded_code=calc_bovw(np.squeeze(np.asarray(training_gridded_intrabag),axis=(1,)), kmeans_codebook_gridded)  #saves gridded Bovw for the whole bag     
     bovwcodebook[i].words=np.asarray(gridded_words_intrabag) # all words across all frames wihin the bag i           
     
+print(len(gridded_words_overall))
+words_new_representation,dic_keys,dic_values=embedding_func(gridded_words_overall,embedding_size)
+query=dic_values[0]
+words_new_representation[dic_values[dic_keys.index(query)]]
+
+
+
 cat_list=[]
 sample_ind=0
 overall_bovw_ind=[]
@@ -634,93 +730,3 @@ print('IRNN test accuracy:', scores[1])
  
  
  
-"""***************
- GLOVE for Video
- ***************"""
- 
-
-
-bovw_shape=(3,5)
-bovw_bins = np.random.randint(9,13, size=bovw_shape)
-bovw_weights = np.random.randint(2, size=bovw_shape)
-
-
-
-print('Bovw bins')
-print(bovw_bins)
-print('Bovw weights')
-print(bovw_weights)
- 
-
-
-
-
-dictionary = {}
-rows = []
-cols = []
-data = array.array('f')
- 
-k=0 
-#print(bovw_bins)
-
-for frame in bovw_bins:
-        for i, first_word in enumerate(frame):
-            first_word_idx = dictionary.setdefault(first_word,
-                                                   len(dictionary))
-            w1=bovw_weights[k,i]                                    
-            for j, second_word in enumerate(frame):
-                second_word_idx = dictionary.setdefault(second_word,
-                                                        len(dictionary))
-                w2=bovw_weights[k,j]            
-                distance = 1
-                w=w1*w2
-
-                if first_word_idx == second_word_idx:
-                    pass
-                elif first_word_idx < second_word_idx:
-                    rows.append(first_word_idx)
-
-                    cols.append(second_word_idx)
-                    data.append(np.double(w*np.double(1.0) / distance))
-                else:
-                    rows.append(second_word_idx)
-                    cols.append(first_word_idx)
-                    data.append(np.double(w*np.double(1.0) / distance))
-        k=k+1
-     
-                        
- 
-
-x=sp.coo_matrix((data, (rows, cols)),
-                         shape=(len(dictionary),
-                                len(dictionary)),
-                         dtype=np.double).tocsr().tocoo()      
-print(dictionary)           
-dic_keys=dictionary.keys()
-dic_values=dictionary.values()
-
-              
-xarr=x.toarray()                         
-xarr/=np.amax(xarr)
-print("coocurance matrix")
-print(xarr)
-xsparse=sp.coo_matrix(xarr)   
-
-glove_model = Glove(no_components=5, learning_rate=0.05)
-glove_model.fit(xsparse,
-                    epochs=500,
-                    no_threads=2)
-
-
-new_word_representation=glove_model.word_vectors
-print("New word representation")
-print(new_word_representation)
-
-print("*** Query ***")
-query=10
-query_pos=dic_values[dic_keys.index(query)]
-
-target=12
-target_pos=dic_values[dic_keys.index(target)]
-sim=np.dot(glove_model.word_vectors[query_pos],glove_model.word_vectors[target_pos])
-print(sim) 
