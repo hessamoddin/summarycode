@@ -46,7 +46,7 @@ hidden_units = 50
 learning_rate = 1e-6
 clip_norm = 1.0
 new_shape,step,radius=(120,180),50,20 # for Daisy feaure
-embedding_size=100     
+embedding_size=100 
      
 """       
 Define functions
@@ -313,7 +313,7 @@ Definition of objects to facilitate bovw feature construction
   
 class framefeature(object):
     """class of video features and other methadata"""
-    def __init__(self, filename=None, category=None, rawfeature=None, bovw_id=None,frame_id=None,glovefeature=None,griddedfeature=None,gridded_code=None):
+    def __init__(self, filename=None, category=None, rawfeature=None, bovw_id=None,frame_id=None,glovefeature=None,griddedfeature=None,gridded_code=None,words=None,glove_words=None):
         self.filename = filename
         self.category = category
         self.rawfeature = rawfeature
@@ -321,11 +321,13 @@ class framefeature(object):
         self.frame_id=frame_id
         self.griddedfeature=griddedfeature
         self.gridded_code=gridded_code
+        self.words=words
+        self.glove_words=glove_words
 
         
 class bovwcodebook(object):
     """Class of Bag of Video Feature object"""
-    def __init__(self, middle_frame=None, category=None, bovw_id=None,contained_frames=None,filename=None,code=None,gridded_code=None,words=None):
+    def __init__(self, middle_frame=None, category=None, bovw_id=None,contained_frames=None,filename=None,code=None,gridded_code=None,words=None,glove_words=None):
         self.contained_frames = contained_frames
         self.category=category
         self.middle_frame=middle_frame
@@ -333,6 +335,7 @@ class bovwcodebook(object):
         self.code=code
         self.gridded_code=gridded_code
         self.words=words
+        self.glove_words=glove_words
   
  
 class videofile(object):
@@ -563,6 +566,7 @@ for i in xrange(num_bovw_all):
          training_gridded_intrabag=[]
          gridded_words_intrabag=[]
          for j in current_contained_frames:
+             
              current_gridded_frame_feature=framefeature[j].griddedfeature
              gridded_words_intraframe=np.zeros((num_row,num_col))
              training_gridded_intraframe=[]
@@ -576,6 +580,8 @@ for i in xrange(num_bovw_all):
                      training_gridded_intraframe.append(current_grid_feature)
                      training_gridded_intrabag.append(current_grid_feature)
                      framefeature[j].gridded_code=calc_bovw(np.squeeze(np.asarray(training_gridded_intraframe),axis=(1,)), kmeans_codebook_gridded)  #saves gridded Bovw for the whole frame
+                     framefeature[i].words=np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),))   
+
          gridded_words_intrabag.append(np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),))) # each row contains words for each containing frame
          gridded_words_overall.append(gridded_words_intrabag)
         
@@ -584,10 +590,27 @@ for i in xrange(num_bovw_all):
     
 print(len(gridded_words_overall))
 new_word_representation,dictionary=embedding_func(gridded_words_overall,embedding_size)
+
+for i in xrange(num_bags_overall):
+    current_word=bovwcodebook[i].words
+    bag_new_rep=[]
+    for j in xrange(current_word.size):
+        bag_new_rep.append(np.ravel(new_word_representation[dictionary[current_word[0,j]]]))
+    bovwcodebook[i].glove_words=np.mean(np.transpose(bag_new_rep),axis=1)
+    
+    
+for i in xrange(num_frames_overall):
+    current_word=framefeature[i].words
+    frame_new_rep=[]
+    for j in xrange(current_word.size):
+        frame_new_rep.append(np.ravel(new_word_representation[dictionary[current_word[0,j]]]))
+    framefeature[i].glove_words=np.mean(np.transpose(frame_new_rep),axis=1)
+    
+
 # dic_keys=old gridded Words
 # dic_values= position of the word in dictionary
-query=31
-target=24
+query=11
+target=7
 sim=np.dot(new_word_representation[dictionary[query]],new_word_representation[dictionary[target]])
 print(sim)
 
@@ -691,6 +714,12 @@ print('IRNN test accuracy:', scores[1])
 
 
 
+
+
+
+
+
+
 print('Evaluate IRNN...')
 model = Sequential()
 
@@ -713,4 +742,4 @@ model.fit(X_raw_train, Y_train, nb_epoch=nb_epochs,
 scores = model.evaluate(X_raw_test, Y_test, verbose=0)
 print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
-
+  
