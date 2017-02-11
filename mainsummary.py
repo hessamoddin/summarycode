@@ -583,12 +583,12 @@ for i in xrange(num_bovw_all):
     bovwcodebook[i].words=np.asarray(gridded_words_intrabag) # all words across all frames wihin the bag i           
     
 print(len(gridded_words_overall))
-words_new_representation,dictionary=embedding_func(gridded_words_overall,embedding_size)
+new_word_representation,dictionary=embedding_func(gridded_words_overall,embedding_size)
 # dic_keys=old gridded Words
 # dic_values= position of the word in dictionary
 query=31
-target=22
-sim=np.dot(words_new_representation[dictionary[query]],words_new_representation[dictionary[target]])
+target=24
+sim=np.dot(new_word_representation[dictionary[query]],new_word_representation[dictionary[target]])
 print(sim)
 
 
@@ -691,12 +691,6 @@ print('IRNN test accuracy:', scores[1])
 
 
 
-
-
-
-
-
-
 print('Evaluate IRNN...')
 model = Sequential()
 
@@ -719,16 +713,4 @@ model.fit(X_raw_train, Y_train, nb_epoch=nb_epochs,
 scores = model.evaluate(X_raw_test, Y_test, verbose=0)
 print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+
