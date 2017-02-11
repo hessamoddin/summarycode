@@ -60,6 +60,7 @@ def embedding_func(gridded_words_overall,embedding_size):
      
     
     glove_bins=np.squeeze(np.asarray(gridded_words_overall),axis=(1,))
+    print(glove_bins)
     glove_shape=glove_bins.shape
     glove_weights=np.ones((glove_shape))
     #bovw_shape=(3,5)
@@ -119,8 +120,7 @@ def embedding_func(gridded_words_overall,embedding_size):
                                     len(dictionary)),
                              dtype=np.double).tocsr().tocoo()      
     print(dictionary)     
-    dic_keys=dictionary.keys()
-    dic_values=dictionary.values()      
+           
  
     
                   
@@ -139,7 +139,7 @@ def embedding_func(gridded_words_overall,embedding_size):
     new_word_representation=glove_model.word_vectors
 
 
-    return new_word_representation,dic_keys,dic_values
+    return new_word_representation,dictionary
     
 
 def learn_kmeans_codebook(X, codebook_size=1000, seed=None):
@@ -359,7 +359,7 @@ cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos3/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos4/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -583,10 +583,13 @@ for i in xrange(num_bovw_all):
     bovwcodebook[i].words=np.asarray(gridded_words_intrabag) # all words across all frames wihin the bag i           
     
 print(len(gridded_words_overall))
-words_new_representation,dic_keys,dic_values=embedding_func(gridded_words_overall,embedding_size)
-query=dic_values[0]
-words_new_representation[dic_values[dic_keys.index(query)]]
-
+words_new_representation,dictionary=embedding_func(gridded_words_overall,embedding_size)
+# dic_keys=old gridded Words
+# dic_values= position of the word in dictionary
+query=31
+target=22
+sim=np.dot(words_new_representation[dictionary[query]],words_new_representation[dictionary[target]])
+print(sim)
 
 
 cat_list=[]
@@ -716,7 +719,6 @@ model.fit(X_raw_train, Y_train, nb_epoch=nb_epochs,
 scores = model.evaluate(X_raw_test, Y_test, verbose=0)
 print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
- 
  
  
  
