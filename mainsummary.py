@@ -579,11 +579,12 @@ for i in xrange(num_bovw_all):
                      #temp=calc_bovw(np.transpose(current_grid_feature), kmeans_codebook_gridded)
                      training_gridded_intraframe.append(current_grid_feature)
                      training_gridded_intrabag.append(current_grid_feature)
-                     framefeature[j].gridded_code=calc_bovw(np.squeeze(np.asarray(training_gridded_intraframe),axis=(1,)), kmeans_codebook_gridded)  #saves gridded Bovw for the whole frame
-                     framefeature[i].words=np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),))   
+                     
+             framefeature[j].gridded_code=calc_bovw(np.squeeze(np.asarray(training_gridded_intraframe),axis=(1,)), kmeans_codebook_gridded)  #saves gridded Bovw for the whole frame
+             framefeature[j].words=np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),))   
 
-         gridded_words_intrabag.append(np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),))) # each row contains words for each containing frame
-         gridded_words_overall.append(gridded_words_intrabag)
+             gridded_words_intrabag.append(np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),))) # each row contains words for each containing frame
+             gridded_words_overall.append(gridded_words_intrabag)
         
     bovwcodebook[i].gridded_code=calc_bovw(np.squeeze(np.asarray(training_gridded_intrabag),axis=(1,)), kmeans_codebook_gridded)  #saves gridded Bovw for the whole bag     
     bovwcodebook[i].words=np.asarray(gridded_words_intrabag) # all words across all frames wihin the bag i           
@@ -742,4 +743,3 @@ model.fit(X_raw_train, Y_train, nb_epoch=nb_epochs,
 scores = model.evaluate(X_raw_test, Y_test, verbose=0)
 print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
-  
