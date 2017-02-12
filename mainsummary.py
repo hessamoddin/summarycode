@@ -714,13 +714,6 @@ print('IRNN test accuracy:', scores[1])
 
 
 
-
-
-
-
-
-
-
 print('Evaluate IRNN...')
 model = Sequential()
 
@@ -743,3 +736,5 @@ model.fit(X_raw_train, Y_train, nb_epoch=nb_epochs,
 scores = model.evaluate(X_raw_test, Y_test, verbose=0)
 print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
+ 
+ 
