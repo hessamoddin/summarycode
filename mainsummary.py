@@ -59,7 +59,7 @@ def embedding_func(gridded_words_overall,embedding_size):
      ***************"""
      
     
-    glove_bins=np.squeeze(np.asarray(gridded_words_overall),axis=(1,))
+    glove_bins=np.asarray(gridded_words_overall)
     print(glove_bins)
     glove_shape=glove_bins.shape
     glove_weights=np.ones((glove_shape))
@@ -716,12 +716,6 @@ print('IRNN test accuracy:', scores[1])
 
 
 
-
-
-
-
-
-
 print('Evaluate IRNN...')
 model = Sequential()
 
@@ -744,16 +738,4 @@ model.fit(X_raw_train, Y_train, nb_epoch=nb_epochs,
 scores = model.evaluate(X_raw_test, Y_test, verbose=0)
 print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
  
