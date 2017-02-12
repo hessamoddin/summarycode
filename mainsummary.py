@@ -593,10 +593,11 @@ print(len(gridded_words_overall))
 new_word_representation,dictionary=embedding_func(gridded_words_overall,embedding_size)
 
 for i in xrange(num_bags_overall):
-    current_word=bovwcodebook[i].words
+    current_bag_words=np.ravel(bovwcodebook[i].words)
+    
     bag_new_rep=[]
-    for j in xrange(current_word.size):
-        bag_new_rep.append(np.ravel(new_word_representation[dictionary[current_word[0,j]]]))
+    for j in xrange(current_bag_words.size):
+        bag_new_rep.append(np.ravel(new_word_representation[dictionary[current_bag_words[j]]]))
     bovwcodebook[i].glove_words=np.mean(np.transpose(bag_new_rep),axis=1)
     
     
@@ -714,6 +715,13 @@ print('IRNN test accuracy:', scores[1])
 
 
 
+
+
+
+
+
+
+
 print('Evaluate IRNN...')
 model = Sequential()
 
@@ -736,5 +744,4 @@ model.fit(X_raw_train, Y_train, nb_epoch=nb_epochs,
 scores = model.evaluate(X_raw_test, Y_test, verbose=0)
 print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
- 
- 
+  
