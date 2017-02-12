@@ -602,17 +602,17 @@ for i in xrange(num_bags_overall):
     
     
 for i in xrange(num_frames_overall):
-    current_word=framefeature[i].words
+    current_frame_words=framefeature[i].words
     frame_new_rep=[]
-    for j in xrange(current_word.size):
-        frame_new_rep.append(np.ravel(new_word_representation[dictionary[current_word[0,j]]]))
+    for j in xrange(current_frame_words.size):
+        frame_new_rep.append(np.ravel(new_word_representation[dictionary[current_frame_words[j]]]))
     framefeature[i].glove_words=np.mean(np.transpose(frame_new_rep),axis=1)
     
 
 # dic_keys=old gridded Words
 # dic_values= position of the word in dictionary
 query=11
-target=7
+target=23
 sim=np.dot(new_word_representation[dictionary[query]],new_word_representation[dictionary[target]])
 print(sim)
 
@@ -716,6 +716,12 @@ print('IRNN test accuracy:', scores[1])
 
 
 
+
+
+
+
+
+
 print('Evaluate IRNN...')
 model = Sequential()
 
@@ -739,3 +745,4 @@ scores = model.evaluate(X_raw_test, Y_test, verbose=0)
 print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
  
+  
