@@ -622,6 +622,7 @@ sample_ind=0
 overall_bovw_ind=[]
 X_bovw_code=[]
 X_raw_code=[]
+X_glove_code=[]
 X_sample_timestep=[]
 """
 Video file level containing BOVW
@@ -643,8 +644,10 @@ for i in xrange(num_videos):
          for timestep in xrange(num_LSTMs):
              overall_bovw_ind.append(current_bovw_chunk_ind[timestep])
              current_bovw_code=bovwcodebook[current_bovw_chunk_ind[timestep]].code
+             current_glove_words=bovwcodebook[current_bovw_chunk_ind[timestep]].glove_words
              X_bovw_code.append(current_bovw_code)
              X_raw_code.append(framefeature[bovwcodebook[current_bovw_chunk_ind[timestep]].middle_frame].rawfeature)  
+             X_glove_code.append(current_glove_words)
              X_sample_timestep.append((sample_ind,timestep))
          sample_ind=sample_ind+1
           
@@ -658,6 +661,7 @@ for i in xrange(len(overall_bovw_ind)):
     ind2=X_sample_timestep[i][1]
     X[ind1,ind2,:]=X_bovw_code[i]
     
+    
 # Training samples to LSTM (num samples X num timesteps aka LSTMS X feature dim)
 X_raw=np.zeros((sample_ind,num_LSTMs,len(X_raw_code[0])))
 
@@ -666,7 +670,13 @@ for i in xrange(len(overall_bovw_ind)):
     ind2=X_sample_timestep[i][1]
     X_raw[ind1,ind2,:]=X_raw_code[i]    
 
+X_glove=np.zeros((sample_ind,num_LSTMs,len(X_glove_code[0])))
 
+for i in xrange(len(overall_bovw_ind)):
+    ind1=X_sample_timestep[i][0]
+    ind2=X_sample_timestep[i][1]
+    X_glove[ind1,ind2,:]=X_glove_code[i]
+    
   
 # Split training and testing sets for frames
 all_frames_ind_2=range(len(cat_list))
@@ -686,13 +696,14 @@ Y_train=Y[train_ind_2,:]
 
 
 X_raw_test=X_raw[test_ind_2,:]   
-X_raw_train=X_raw[train_ind_2,:]    
-     
+X_raw_train=X_raw[train_ind_2,:]   
  
+X_glove_test=X_glove[test_ind_2,:]   
+X_glove_train=X_glove[train_ind_2,:]
 
  
 
-print('Evaluate IRNN...')
+print('Evaluate IRNN with BOVW...')
 model = Sequential()
 
 model.add(LSTM(output_dim=hidden_units,
@@ -722,7 +733,7 @@ print('IRNN test accuracy:', scores[1])
 
 
 
-print('Evaluate IRNN...')
+print('Evaluate IRNN with raw frames ...')
 model = Sequential()
 
 
@@ -744,5 +755,29 @@ model.fit(X_raw_train, Y_train, nb_epoch=nb_epochs,
 scores = model.evaluate(X_raw_test, Y_test, verbose=0)
 print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
+
+
  
   
+print('Evaluate IRNN with Glove...')
+model = Sequential()
+
+model.add(LSTM(output_dim=hidden_units,
+                    init=lambda shape, name: normal(shape, scale=0.001, name=name),
+                    inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
+                    activation='relu',
+                    input_shape=X_train.shape[1:]))
+model.add(Dense(nb_classes))
+model.add(Activation('softmax'))
+rmsprop = RMSprop(lr=learning_rate)
+model.compile(loss='categorical_crossentropy',
+              optimizer=rmsprop,
+              metrics=['accuracy'])
+
+model.fit(X_train, Y_train, nb_epoch=nb_epochs,verbose=0)
+
+scores = model.evaluate(X_test, Y_test, verbose=0)
+print('IRNN test score:', scores[0])
+print('IRNN test accuracy:', scores[1])
+
+
