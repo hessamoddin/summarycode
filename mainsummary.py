@@ -721,7 +721,7 @@ model.compile(loss='categorical_crossentropy',
 model.fit(X_train, Y_train, nb_epoch=nb_epochs,verbose=0)
 
 scores = model.evaluate(X_test, Y_test, verbose=0)
-print('IRNN test score:', scores[0])
+#print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
 
 
@@ -753,7 +753,7 @@ model.fit(X_raw_train, Y_train, nb_epoch=nb_epochs,
           verbose=0)
 
 scores = model.evaluate(X_raw_test, Y_test, verbose=0)
-print('IRNN test score:', scores[0])
+#print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
 
 
@@ -766,7 +766,7 @@ model.add(LSTM(output_dim=hidden_units,
                     init=lambda shape, name: normal(shape, scale=0.001, name=name),
                     inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
                     activation='relu',
-                    input_shape=X_train.shape[1:]))
+                    input_shape=X_glove_train.shape[1:]))
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
@@ -777,7 +777,7 @@ model.compile(loss='categorical_crossentropy',
 model.fit(X_glove_train, Y_train, nb_epoch=nb_epochs,verbose=0)
 
 scores = model.evaluate(X_test, Y_test, verbose=0)
-print('IRNN test score:', scores[0])
+#print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
 
 
