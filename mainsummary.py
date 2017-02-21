@@ -260,10 +260,11 @@ def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=80, ra
         daisy_1D=np.ravel(daisy_desc)
          
         """Extract Daisy feature for a patch from the frame of video """
-        step_glove=int(step/2)
-        radius_glove=int(radius/2)
-        patch_shape_x=int(new_shape[0]/2)
-        patch_shape_y=int(new_shape[1]/2)
+        N=3
+        step_glove=int(step/N)
+        radius_glove=int(radius/N)
+        patch_shape_x=int(new_shape[0]/N)
+        patch_shape_y=int(new_shape[1]/N)
 
         patchs_arr = view_as_blocks(frame_gray, (patch_shape_x,patch_shape_y))
         patch_num_row=patchs_arr.shape[0]
@@ -362,7 +363,7 @@ cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos4/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos3/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -402,8 +403,8 @@ for cat in dirs:
                       # j is the frame index for the bvw processable parts of video
                      for j in xrange(bovw_processable_len):
                          bovw_id=(i)//bovw_size  # every bovw_size block of frames
-                        # print("** frame no %d **" % j)	
-                         print("%d %%" % (1+100*subsampling_rate*j//num_frames))	
+                       # print("** frame no %d **" % j)	
+                         # print("%d %%" % (1+100*subsampling_rate*j//num_frames))	
                         
                             # Feature extraction
                             # daisy_1D,surf_descs,sift_descs 		
@@ -776,7 +777,7 @@ model.compile(loss='categorical_crossentropy',
 
 model.fit(X_glove_train, Y_train, nb_epoch=nb_epochs,verbose=0)
 
-scores = model.evaluate(X_glove_train, Y_test, verbose=0)
+scores = model.evaluate(X_glove_test, Y_test, verbose=0)
 #print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
 
