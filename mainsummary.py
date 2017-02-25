@@ -13,7 +13,7 @@ from skimage.transform import resize
 from skimage.color import rgb2gray
 from skimage.util import view_as_blocks
 from skimage.feature import daisy
-from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans, KMeans
 from random import sample
 from glove import Glove
  
@@ -34,7 +34,7 @@ import scipy.sparse as sp
 """       
 Parameters
 """
-subsampling_rate=2
+subsampling_rate=5
 bovw_size=20
 num_LSTMs=10
 train_frac=0.5
@@ -149,13 +149,13 @@ def learn_kmeans_codebook(X, codebook_size=1000, seed=None):
     logger = logging.getLogger()
     logger.info("Learning codebook with %d words ..." % codebook_size)
     # Run vector-quantization
-    cb = KMeans(codebook_size,
-                init="k-means++",
-                n_init=10,
-                max_iter=500,
-                random_state=seed)
-    cb.fit(X)
-    return cb
+                
+    mbk = MiniBatchKMeans(init='k-means++', n_clusters=codebook_size, batch_size=100,
+                      n_init=10, max_no_improvement=10, verbose=0)
+    mbk.fit(X)
+
+                
+    return mbk
 
  
 def calc_bovw(X, cb):
@@ -260,7 +260,7 @@ def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=80, ra
         daisy_1D=np.ravel(daisy_desc)
          
         """Extract Daisy feature for a patch from the frame of video """
-        N=3
+        N=4
         step_glove=int(step/N)
         radius_glove=int(radius/N)
         patch_shape_x=int(new_shape[0]/N)
@@ -363,7 +363,7 @@ cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos3/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos2/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -404,7 +404,8 @@ for cat in dirs:
                      for j in xrange(bovw_processable_len):
                          bovw_id=(i)//bovw_size  # every bovw_size block of frames
                        # print("** frame no %d **" % j)	
-                         # print("%d %%" % (1+100*subsampling_rate*j//num_frames))	
+                         
+                         print("%d %%" % (1+100*subsampling_rate*j//num_frames))	
                         
                             # Feature extraction
                             # daisy_1D,surf_descs,sift_descs 		
@@ -780,5 +781,4 @@ model.fit(X_glove_train, Y_train, nb_epoch=nb_epochs,verbose=0)
 scores = model.evaluate(X_glove_test, Y_test, verbose=0)
 #print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
-
 
