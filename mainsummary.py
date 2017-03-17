@@ -781,4 +781,3 @@ model.fit(X_glove_train, Y_train, nb_epoch=nb_epochs,verbose=0)
 scores = model.evaluate(X_glove_test, Y_test, verbose=0)
 #print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
-
