@@ -27,25 +27,25 @@ import os
 import imageio
 import os.path
 import scipy.sparse as sp
-
-
-
-
+import datetime
+import dill
+ 
+ 
 """       
 Parameters
 """
-subsampling_rate=5
-bovw_size=20
+subsampling_rate=100
+bovw_size=50
 num_LSTMs=10
 train_frac=0.5
 LSTM_overlap=0.25
 longest_allowed_frames=500
 batch_size = 1
 nb_epochs = 200
-hidden_units = 50
+hidden_units = 30
 learning_rate = 1e-6
 clip_norm = 1.0
-new_shape,step,radius=(120,180),50,20 # for Daisy feaure
+new_shape,step,radius=(240,360),50,20 # for Daisy feaure
 embedding_size=100 
      
 """       
@@ -357,13 +357,13 @@ videofile=[ videofile() for i in range(1000000)]
 Main body of the code
 ***************************
 ************************""" 
-
+start_time = datetime.datetime.now()
 # current working directory for the code
 cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos2/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos4/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -425,15 +425,23 @@ for cat in dirs:
                          # Track record of which video does this frame belong toin a list
                          file_counter=list(set(file_counter))
                          # update feature objects for each video
-                     #pickle.dump(framefeature, open( "raw_features_Class_array.p", "wb" ) )
-                     #framefeature_loaded = pickle.load( open( "raw_features_Class_array.p", "rb" ) )
                  except:
                      print("error on video")
                      print(current_file)
                      print("***")
+                     
 print("Finished raw feature extraction!")
 
 
+feature_ext_finished_time = datetime.datetime.now()
+  
+
+with open('feature_dill.pkl', 'wb') as f:
+   dill.dump(framefeature, f)
+    
+with open(infile, 'rb') as in_strm:
+    datastruct = dill.load(in_strm)
+    
 # The number of all (subsampled) frames in dataset                      
 number_frames_all=i  
 
@@ -502,7 +510,7 @@ overall_gridded_training=np.asarray(overall_gridded_training)
 kmeans_codebook_size_gridded=int(math.sqrt(math.floor(len(overall_gridded_training))))
 kmeans_codebook_size_holistic=int(math.sqrt(math.floor(len(overall_holisitc_training))))
 
-
+before_kmeans_time = datetime.datetime.now()
 print("learn_kmeans_codebook")
 # Final codebook created by Kmeans
 kmeans_codebook_holistic=learn_kmeans_codebook(overall_holisitc_training, kmeans_codebook_size_holistic)
@@ -779,5 +787,11 @@ model.compile(loss='categorical_crossentropy',
 model.fit(X_glove_train, Y_train, nb_epoch=nb_epochs,verbose=0)
 
 scores = model.evaluate(X_glove_test, Y_test, verbose=0)
+
 #print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
+finish_time = datetime.datetime.now()
+print("feature extracting takes ...")
+print(feature_ext_finished_time-start_time)
+print("processing takes ...")
+print(finish_time-before_kmeans_time)
