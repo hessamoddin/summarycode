@@ -34,8 +34,8 @@ import dill
 """       
 Parameters
 """
-subsampling_rate=100
-bovw_size=50
+subsampling_rate=1
+bovw_size=30
 num_LSTMs=10
 train_frac=0.5
 LSTM_overlap=0.25
@@ -363,7 +363,7 @@ cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos4/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos2/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
