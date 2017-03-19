@@ -363,7 +363,7 @@ cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos2/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos3/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -438,9 +438,11 @@ feature_ext_finished_time = datetime.datetime.now()
 
 with open('feature_dill.pkl', 'wb') as f:
    dill.dump(framefeature, f)
+   
     
-with open(infile, 'rb') as in_strm:
+with open('feature_dill.pkl', 'rb') as in_strm:
     datastruct = dill.load(in_strm)
+feature_loaded_time = datetime.datetime.now()  
     
 # The number of all (subsampled) frames in dataset                      
 number_frames_all=i  
