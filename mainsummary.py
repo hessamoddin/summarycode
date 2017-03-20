@@ -1,3 +1,11 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Mar 18 18:55:29 2017
+
+@author: hessam
+"""
+
 from __future__ import division, print_function, absolute_import
 from __future__ import print_function
 
@@ -34,7 +42,7 @@ import dill
 """       
 Parameters
 """
-subsampling_rate=1
+subsampling_rate=2
 bovw_size=30
 num_LSTMs=10
 train_frac=0.5
@@ -45,7 +53,7 @@ nb_epochs = 200
 hidden_units = 30
 learning_rate = 1e-6
 clip_norm = 1.0
-new_shape,step,radius=(240,360),50,20 # for Daisy feaure
+new_shape,step,radius=(240,360),30,15 # for Daisy feaure
 embedding_size=100 
      
 """       
@@ -250,9 +258,9 @@ def fisher_vector(samples, means, covs, w):
 
  
 
-def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=80, radius=45):
+def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=30, radius=15):
     """Extract Daisy feature for a frame of video """
-    if frame_no<num_frames-1: 
+    if frame_no<min(100,num_frames-1): 
         frame = vid.get_data(frame_no)  
         frame_resized=resize(frame, new_shape)
         frame_gray= rgb2gray(frame_resized)
@@ -260,7 +268,7 @@ def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=80, ra
         daisy_1D=np.ravel(daisy_desc)
          
         """Extract Daisy feature for a patch from the frame of video """
-        N=4
+        N=5
         step_glove=int(step/N)
         radius_glove=int(radius/N)
         patch_shape_x=int(new_shape[0]/N)
@@ -438,6 +446,8 @@ feature_ext_finished_time = datetime.datetime.now()
 
 with open('feature_dill.pkl', 'wb') as f:
    dill.dump(framefeature, f)
+    
+     
    
     
 with open('feature_dill.pkl', 'rb') as in_strm:
