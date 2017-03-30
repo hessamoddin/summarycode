@@ -30,12 +30,11 @@ import scipy.sparse as sp
 
 
 
-
 """       
 Parameters
 """
-subsampling_rate=5
-bovw_size=20
+subsampling_rate=2
+bovw_size=30
 num_LSTMs=10
 train_frac=0.5
 LSTM_overlap=0.25
@@ -363,7 +362,7 @@ cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos3/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos2/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -398,19 +397,16 @@ for cat in dirs:
                      step_percent=num_frames//10
                      # trim out the bag of videos frames in a way that each
                      #have bags number equal to multiples of bovw_size
-                     bovw_processable_len=bovw_size*(num_frames//(bovw_size))
-                     bovw_processable_len=subsampling_rate*(bovw_processable_len//(subsampling_rate))
-                      # j is the frame index for the bvw processable parts of video
-                     for j in xrange(bovw_processable_len):
+                       # j is the frame index for the bvw processable parts of video
+                     for j in xrange(0,min(5*subsampling_rate*bovw_size*num_LSTMs,num_frames),subsampling_rate):
                          bovw_id=(i)//bovw_size  # every bovw_size block of frames
                        # print("** frame no %d **" % j)	
                          
-                         print("%d %%" % (1+100*subsampling_rate*j//num_frames))	
-                        
+                         
                             # Feature extraction
                             # daisy_1D,surf_descs,sift_descs 		
                          # extract dausy features: for the whole frame or grid-wise for each frame
-                         current_grid_feature,current_frame_feature=Feature_Extractor_Fn(vid,num_frames,j*subsampling_rate) 
+                         current_grid_feature,current_frame_feature=Feature_Extractor_Fn(vid,num_frames,j) 
                          framefeature[i].filename=videopath # take the name&path ofj the video containing the fraame
                          framefeature[i].category=cat # take the category of the current video 
                          framefeature[i].rawfeature=current_frame_feature #daisy feature for the whole video
