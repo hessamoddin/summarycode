@@ -27,26 +27,31 @@ import os
 import imageio
 import os.path
 import scipy.sparse as sp
-
+import tables as tb
+np.set_printoptions(threshold=np.inf)
 
 
 """       
 Parameters
 """
-subsampling_rate=2
+subsampling_rate=3
+Num_samples_per_video=5
 bovw_size=30
-num_LSTMs=10
+num_LSTMs=7
 train_frac=0.5
 LSTM_overlap=0.25
 longest_allowed_frames=500
 batch_size = 1
 nb_epochs = 200
-hidden_units = 50
+hidden_units = 20
 learning_rate = 1e-6
 clip_norm = 1.0
 new_shape,step,radius=(240,360),50,20 # for Daisy feaure
-embedding_size=100 
-     
+embedding_size=300 
+
+ 
+
+
 """       
 Define functions
 """
@@ -306,10 +311,21 @@ Definition of objects to facilitate bovw feature construction
 """
 
  
+     
+ 
+ 
+     
 
+class framefeature_hdf(tb.IsDescription):
+    filename        = tb.StringCol(200, pos=1) 
+    category        = tb.StringCol(10,pos=2)        
+    rawfeature      = tb.StringCol(500000, pos=3) 
+    bovw_id         = tb.IntCol(pos=4) 
+    frame_id        = tb.IntCol(pos=5)  
 
-  
-  
+fileh = tb.open_file('videofeatures.h5', mode='w')
+table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
+
   
 class framefeature(object):
     """class of video features and other methadata"""
@@ -357,12 +373,11 @@ Main body of the code
 ***************************
 ************************""" 
 
-# current working directory for the code
 cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos2/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos3/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -371,6 +386,7 @@ dirs = os.listdir( datasetpath )
 This FOR loop extracts the video frames feature and store them in 
 the array of framefeature objects associated with each frame
 """
+
 print("Thus begins feature extraction!")
 i=0
 file_counter=[]
@@ -388,7 +404,7 @@ for cat in dirs:
                  # full name and path for the current video file
                  videopath=path.join(cat_path,current_file)
                  try:
-                     # read the current video file
+                                      # read the current video file
                      vid = imageio.get_reader(videopath,  'ffmpeg')
                      # The number of frames for this video
                      num_frames=vid._meta['nframes']
@@ -398,9 +414,9 @@ for cat in dirs:
                      # trim out the bag of videos frames in a way that each
                      #have bags number equal to multiples of bovw_size
                        # j is the frame index for the bvw processable parts of video
-                     for j in xrange(0,min(5*subsampling_rate*bovw_size*num_LSTMs,num_frames),subsampling_rate):
+                     for j in xrange(0,min(Num_samples_per_video*subsampling_rate*bovw_size*num_LSTMs,num_frames),subsampling_rate):
                          bovw_id=(i)//bovw_size  # every bovw_size block of frames
-                       # print("** frame no %d **" % j)	
+                         print("** frame no %d **" % j)	
                          
                          
                             # Feature extraction
@@ -413,6 +429,9 @@ for cat in dirs:
                          framefeature[i].bovw_id=bovw_id	#bag number in the video for this frame
                          framefeature[i].frame_id=i # frame number in the video 
                          framefeature[i].griddedfeature=current_grid_feature # gridded Daisy feature for this frame
+                         table.append([(videopath,cat,current_frame_feature,bovw_id,i)]) #filename,category,rawfeature,bovw_id,frame_id,griddedfeature
+                         
+
                         # print(i)
                          #print(bovw_id)
                          #print(j*subsampling_rate)
@@ -429,9 +448,29 @@ for cat in dirs:
                      print("***")
 print("Finished raw feature extraction!")
 
+ 
 
+ 
+  
+
+ 
+
+
+fileh.close()
+
+ 
+
+  
 # The number of all (subsampled) frames in dataset                      
 number_frames_all=i  
+
+
+   
+fileh = tb.open_file('videofeatures.h5', mode='r')
+table_root=fileh.root.table
+curent_row=table_root[10]
+rf=curent_row["rawfeature"]
+fileh.close()
 
 
 
@@ -708,7 +747,9 @@ model.add(LSTM(output_dim=hidden_units,
                     init=lambda shape, name: normal(shape, scale=0.001, name=name),
                     inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
                     activation='relu',
-                    input_shape=X_train.shape[1:]))
+                    input_shape=X_train.shape[1:],return_sequences=True))
+model.add(LSTM(output_dim=hidden_units))
+
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
