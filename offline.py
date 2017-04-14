@@ -11,6 +11,7 @@ import numpy as np
 import os
 import os.path
 import imageio
+import pickle
 import tables as tb
  
 
@@ -152,15 +153,13 @@ for cat in dirs:
                      num_frames=vid._meta['nframes']
                      #sampling_rate=num_frames//longest_allowed_frames+1
                      # step_percent is just a variable to monitor the progress
-                     step_percent=num_frames//10
-                     # trim out the bag of videos frames in a way that each
+                      # trim out the bag of videos frames in a way that each
                      #have bags number equal to multiples of bovw_size
                        # j is the frame index for the bvw processable parts of video
                        # 
                      for j in xrange(0,min(num_frames,4000),subsampling_rate):
                          bovw_id=(i)//bovw_size  # every bovw_size block of frames
-                         print("** frame no %d **" % j)	
-                         
+                          
                          
                             # Feature extraction
                             # daisy_1D,surf_descs,sift_descs 		
@@ -175,7 +174,7 @@ for cat in dirs:
                          i=i+1
                          file_counter.append(videopath)
                          # Track record of which video does this frame belong toin a list
-                         file_counter=list(set(file_counter))
+                         
                          # update feature objects for each video
                      #pickle.dump(framefeature, open( "raw_features_Class_array.p", "wb" ) )
                      #framefeature_loaded = pickle.load( open( "raw_features_Class_array.p", "rb" ) )
@@ -184,8 +183,10 @@ for cat in dirs:
                      print(current_file)
                      print("***")
 print("Finished raw feature extraction!")
+file_counter=list(set(file_counter))
+pickle.dump( file_counter, open( "file_counter.p", "wb" ) )
+pickle.dump( dirs, open( "dirs.p", "wb" ) )
 
- 
 
  
   
@@ -198,10 +199,7 @@ fileh.close()
  
 
   
-# The number of all (subsampled) frames in dataset                      
-number_frames_all=i  
-
-
+ 
    
 fileh = tb.open_file('videofeatures4.h5', mode='r')
 table_root=fileh.root.table
