@@ -49,6 +49,7 @@ clip_norm = 1.0
 new_shape,step,radius=(240,360),50,20 # for Daisy feaure
 embedding_size=300 
 
+
  
 
 
@@ -254,7 +255,8 @@ def fisher_vector(samples, means, covs, w):
 
  
 
-def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=80, radius=45):
+def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=60, radius=40):
+    N=5
     """Extract Daisy feature for a frame of video """
     if frame_no<num_frames-1: 
         frame = vid.get_data(frame_no)  
@@ -264,7 +266,6 @@ def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=80, ra
         daisy_1D=np.ravel(daisy_desc)
          
         """Extract Daisy feature for a patch from the frame of video """
-        N=4
         step_glove=int(step/N)
         radius_glove=int(radius/N)
         patch_shape_x=int(new_shape[0]/N)
@@ -319,9 +320,10 @@ Definition of objects to facilitate bovw feature construction
 class framefeature_hdf(tb.IsDescription):
     filename        = tb.StringCol(200, pos=1) 
     category        = tb.StringCol(10,pos=2)        
-    rawfeature      = tb.StringCol(500000, pos=3) 
+    rawfeature      = tb.Float32Col(shape=(1,7000), pos=3) 
     bovw_id         = tb.IntCol(pos=4) 
     frame_id        = tb.IntCol(pos=5)  
+    grid_feature    = tb.Float32Col(shape=(5,5,7000), pos=6) 
 
 fileh = tb.open_file('videofeatures.h5', mode='w')
 table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
@@ -377,7 +379,7 @@ cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos3/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos2/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -423,13 +425,7 @@ for cat in dirs:
                             # daisy_1D,surf_descs,sift_descs 		
                          # extract dausy features: for the whole frame or grid-wise for each frame
                          current_grid_feature,current_frame_feature=Feature_Extractor_Fn(vid,num_frames,j) 
-                         framefeature[i].filename=videopath # take the name&path ofj the video containing the fraame
-                         framefeature[i].category=cat # take the category of the current video 
-                         framefeature[i].rawfeature=current_frame_feature #daisy feature for the whole video
-                         framefeature[i].bovw_id=bovw_id	#bag number in the video for this frame
-                         framefeature[i].frame_id=i # frame number in the video 
-                         framefeature[i].griddedfeature=current_grid_feature # gridded Daisy feature for this frame
-                         table.append([(videopath,cat,current_frame_feature,bovw_id,i)]) #filename,category,rawfeature,bovw_id,frame_id,griddedfeature
+                         table.append([(videopath,cat,current_frame_feature,bovw_id,i,current_grid_feature)]) #filename,category,rawfeature,bovw_id,frame_id,griddedfeature
                          
 
                         # print(i)
@@ -468,8 +464,8 @@ number_frames_all=i
    
 fileh = tb.open_file('videofeatures.h5', mode='r')
 table_root=fileh.root.table
-curent_row=table_root[10]
-rf=curent_row["rawfeature"]
+current_row=table_root[0]
+rf=current_row["rawfeature"]
 fileh.close()
 
 
