@@ -15,6 +15,7 @@ import pickle
 import tables as tb
  
 
+
 """       
 Parameters
 """
@@ -24,7 +25,23 @@ new_shape,step,radius=(240,360),50,20 # for Daisy feaure
 N=5
 
 
- 
+"""
+Define HDF database for frame features
+"""
+
+class framefeature_hdf(tb.IsDescription):
+    filename        = tb.StringCol(200, pos=1) 
+    category        = tb.StringCol(10,pos=2)        
+    rawfeature      = tb.Float32Col(7000, pos=3) 
+    bovw_id         = tb.IntCol(pos=4) 
+    frame_id        = tb.IntCol(pos=5)  
+    griddedfeature    = tb.Float32Col(shape=(N,N,7000), pos=6) 
+    gridded_code = tb.Float32Col(shape=(N,N,7000), pos=7) 
+    words = tb.Float32Col(7000, pos=8) 
+    glove_words= tb.Float32Col(shape=(1,7000), pos=9) 
+
+fileh = tb.open_file('videofeatures5.h5', mode='w')
+table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
 
 
 """       
@@ -80,12 +97,6 @@ def Feature_Extractor_Fn(vid,num_frames,frame_no,N,new_shape=(360,480),step=60, 
 
 
 
-def chunks(l, n):
-    """
-    To split video into different evenly sized set of frames to feed into LSTMs    
-    Yield successive n-sized chunks from l."""
-    for i in range(0, len(l), n):
-        yield l[i:i+n]
 
 """
 Definition of objects to facilitate bovw feature construction
@@ -97,16 +108,6 @@ Definition of objects to facilitate bovw feature construction
  
      
 
-class framefeature_hdf(tb.IsDescription):
-    filename        = tb.StringCol(200, pos=1) 
-    category        = tb.StringCol(10,pos=2)        
-    rawfeature      = tb.Float32Col(shape=(1,7000), pos=3) 
-    bovw_id         = tb.IntCol(pos=4) 
-    frame_id        = tb.IntCol(pos=5)  
-    grid_feature    = tb.Float32Col(shape=(N,N,7000), pos=6) 
-
-fileh = tb.open_file('videofeatures4.h5', mode='w')
-table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
 
  
 
@@ -120,7 +121,7 @@ cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos4/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos5/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -136,10 +137,11 @@ file_counter=[]
 # cat: categort of actions, also the name of the folder containing the action videos
 for cat in dirs:
     print("Processing  %s Videos...." % (cat))    
+    print(cat)
     if "." not in cat:
-	    cat_path=join(datasetpath,cat)
-	    onlyfiles = [f for f in listdir(cat_path) if isfile(join(cat_path, f))]
-	    for current_file in onlyfiles:
+        cat_path=join(datasetpath,cat)
+        onlyfiles = [f for f in listdir(cat_path) if isfile(join(cat_path, f))]
+        for current_file in onlyfiles:
 		# This dataset contains only mp4 video clips
 	        if current_file.endswith('.mp4'):
                  print("***")
@@ -157,15 +159,15 @@ for cat in dirs:
                      #have bags number equal to multiples of bovw_size
                        # j is the frame index for the bvw processable parts of video
                        # 
-                     for j in xrange(0,min(num_frames,4000),subsampling_rate):
+                     for j in xrange(0,min(num_frames,31000),subsampling_rate):
                          bovw_id=(i)//bovw_size  # every bovw_size block of frames
                           
-                         
+                         print(j)
                             # Feature extraction
                             # daisy_1D,surf_descs,sift_descs 		
                          # extract dausy features: for the whole frame or grid-wise for each frame
                          current_grid_feature,current_frame_feature=Feature_Extractor_Fn(vid,num_frames,j,N) 
-                         table.append([(videopath,cat,current_frame_feature,bovw_id,i,current_grid_feature)]) #filename,category,rawfeature,bovw_id,frame_id,griddedfeature
+                         table.append([(videopath,cat,current_frame_feature,bovw_id,i,current_grid_feature,None,None,None)]) #filename,category,rawfeature,bovw_id,frame_id,griddedfeature
                          
 
                         # print(i)
@@ -201,12 +203,10 @@ fileh.close()
   
  
    
-fileh = tb.open_file('videofeatures4.h5', mode='r')
+fileh = tb.open_file('videofeatures5.h5', mode='r')
 table_root=fileh.root.table
 current_row=table_root[0]
 print(current_row)
-rf=current_row["rawfeature"]
-print(rf)
 fileh.close()
 
 
