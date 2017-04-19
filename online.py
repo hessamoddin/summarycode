@@ -537,7 +537,7 @@ for i in xrange(num_videos):
              current_bovw_code=bovwcodebook[current_bovw_chunk_ind[timestep]].code
              current_glove_words=bovwcodebook[current_bovw_chunk_ind[timestep]].glove_words
              X_bovw_code.append(current_bovw_code)
-             X_raw_code.append(frametable[bovwcodebook[current_bovw_chunk_ind[timestep]]['middle_frame']].rawfeature)  
+             X_raw_code.append(frametable[bovwcodebook[current_bovw_chunk_ind[timestep]].middle_frame]['rawfeature'])
              X_glove_code.append(current_glove_words)
              X_sample_timestep.append((sample_ind,timestep))
          sample_ind=sample_ind+1
