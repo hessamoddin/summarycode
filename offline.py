@@ -38,7 +38,7 @@ class framefeature_hdf(tb.IsDescription):
     griddedfeature    = tb.Float32Col(shape=(N,N,7000), pos=6) 
 
 
-fileh = tb.open_file('framefeatures5.h5', mode='w')
+fileh = tb.open_file('framefeatures4.h5', mode='w')
 table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
 
 
@@ -112,7 +112,7 @@ cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos5/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos4/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -150,7 +150,7 @@ for cat in dirs:
                      #have bags number equal to multiples of bovw_size
                        # j is the frame index for the bvw processable parts of video
                        # 
-                     for j in xrange(0,min(num_frames,31000),subsampling_rate):
+                     for j in xrange(0,min(num_frames,5000),subsampling_rate):
                          bovw_id=(i)//bovw_size  # every bovw_size block of frames
                           
                          print(j)
@@ -194,7 +194,7 @@ fileh.close()
   
  
    
-fileh = tb.open_file('videofeatures5.h5', mode='r')
+fileh = tb.open_file('videofeatures4.h5', mode='r')
 table_root=fileh.root.table
 current_row=table_root[0]
 print(current_row)
