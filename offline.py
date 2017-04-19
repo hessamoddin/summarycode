@@ -36,11 +36,9 @@ class framefeature_hdf(tb.IsDescription):
     bovw_id         = tb.IntCol(pos=4) 
     frame_id        = tb.IntCol(pos=5)  
     griddedfeature    = tb.Float32Col(shape=(N,N,7000), pos=6) 
-    gridded_code = tb.Float32Col(shape=(N,N,7000), pos=7) 
-    words = tb.Float32Col(7000, pos=8) 
-    glove_words= tb.Float32Col(shape=(1,7000), pos=9) 
 
-fileh = tb.open_file('videofeatures5.h5', mode='w')
+
+fileh = tb.open_file('framefeatures5.h5', mode='w')
 table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
 
 
@@ -94,13 +92,6 @@ def Feature_Extractor_Fn(vid,num_frames,frame_no,N,new_shape=(360,480),step=60, 
     return patch_daisy_arr,daisy_1D
 
 
-
-
-
-
-"""
-Definition of objects to facilitate bovw feature construction
-"""
 
  
      
@@ -167,7 +158,7 @@ for cat in dirs:
                             # daisy_1D,surf_descs,sift_descs 		
                          # extract dausy features: for the whole frame or grid-wise for each frame
                          current_grid_feature,current_frame_feature=Feature_Extractor_Fn(vid,num_frames,j,N) 
-                         table.append([(videopath,cat,current_frame_feature,bovw_id,i,current_grid_feature,None,None,None)]) #filename,category,rawfeature,bovw_id,frame_id,griddedfeature
+                         table.append([(videopath,cat,current_frame_feature,bovw_id,i,current_grid_feature)]) #filename,category,rawfeature,bovw_id,frame_id,griddedfeature
                          
 
                         # print(i)
