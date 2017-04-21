@@ -38,22 +38,12 @@ learning_rate = 1e-6
 clip_norm = 1.0
 new_shape,step,radius=(240,360),50,20 # for Daisy feaure
 embedding_size=300 
-
+N=5
 
 
  
         
-class bovwcodebook(object):
-    """Class of Bag of Video Feature object"""
-    def __init__(self, middle_frame=None, category=None, bovw_id=None,contained_frames=None,filename=None,code=None,gridded_code=None,words=None,glove_words=None):
-        self.contained_frames = contained_frames
-        self.category=category
-        self.middle_frame=middle_frame
-        self.filename=filename
-        self.code=code
-        self.gridded_code=gridded_code
-        self.words=words
-        self.glove_words=glove_words
+
   
  
 class videofile(object):
@@ -274,13 +264,11 @@ def fisher_vector(samples, means, covs, w):
 
  
 
-  
- 
+
      
 
 
 
-bovwcodebook=[ bovwcodebook() for i in range(1000000)]
 videofile=[ videofile() for i in range(1000000)]
 
 
@@ -378,7 +366,7 @@ kmeans_codebook_gridded=learn_kmeans_codebook(overall_gridded_training, kmeans_c
 class gridfeature_hdf(tb.IsDescription):
     gridded_code = tb.Float32Col(kmeans_codebook_size_gridded , pos=1) 
     words = tb.Int32Col(num_row*num_col, pos=2) 
-gridfileh = tb.open_file('gridfeatures5.h5', mode='w')
+gridfileh = tb.open_file('gridfeatures.h5', mode='w')
 gridtable = gridfileh.create_table(gridfileh.root, 'table', gridfeature_hdf,"A table") 
  
 # second method of bovw calculation: GMM (fisher vector) ... to be finished later
@@ -411,6 +399,29 @@ bovwcodebook[i].code:
 print("for i in xrange(num_bovw_all)")
 
 
+ 
+class bovwfeature_hdf(tb.IsDescription):
+    contained_frames=tb.Int32Col(bovw_size,pos=1)
+    middle_frame=tb.Int32Col(pos=2)
+    category        = tb.StringCol(10,pos=3)        
+    filename=tb.StringCol(200, pos=4) 
+    code=tb.Float32Col(kmeans_codebook_size_holistic,pos=5)
+    
+ 
+class gridded_bovwfeature_hdf(tb.IsDescription):
+    gridded_code=tb.Int32Col(kmeans_codebook_size_gridded,pos=1)
+    words=tb.Int32Col(shape=(bovw_size,N*N),pos=2)
+ 
+  
+    
+bovwfileh = tb.open_file('bovwfeatures.h5', mode='w')
+bovwtable = bovwfileh.create_table(bovwfileh.root, 'table', bovwfeature_hdf,"A table") 
+
+gridded_bovwfileh = tb.open_file('gridded_bovwfeatures.h5', mode='w')
+gridded_bovwtable = gridded_bovwfileh.create_table(gridded_bovwfileh.root, 'table', gridded_bovwfeature_hdf,"A table") 
+ 
+    
+
 num_frames_overall=0
 num_bags_overall=0
 gridded_words_overall=[]  # All
@@ -424,25 +435,23 @@ for i in xrange(num_bovw_all):
          num_bags_overall=num_bags_overall+1
          num_frames_overall=num_frames_overall+len(current_contained_frames)
         
-     
-         bovwcodebook[i].contained_frames=current_contained_frames
-
+         
         	# take the middle frame of the bag of visual words as its examplar
          middle_frame=current_contained_frames[len(current_contained_frames)//2]
-         bovwcodebook[i].middle_frame=middle_frame
+ 
          # categotry of the current bag = category of its middle frame= 
          #category of all frames in the bag= category of the video containing the bag
          
-         
+         current_category=frametable[middle_frame]['category']
+         current_filename=frametable[middle_frame]['filename']
 
-         bovwcodebook[i].category=frametable[middle_frame]['category']
-         bovwcodebook[i].filename=frametable[middle_frame]['filename']
+
          training_list_holistic=[]
          for j in current_contained_frames:
              training_list_holistic.append(frametable[j]['rawfeature'])
      
-         bovwcodebook[i].code=calc_bovw(np.asarray(training_list_holistic), kmeans_codebook_holistic)
-
+         current_code=calc_bovw(np.asarray(training_list_holistic), kmeans_codebook_holistic)
+         bovwtable.append([(current_contained_frames,middle_frame,current_category,current_filename,current_code)])
          training_gridded_intrabag=[]
          gridded_words_intrabag=[]
          for j in current_contained_frames:
@@ -470,8 +479,9 @@ for i in xrange(num_bovw_all):
              gridded_words_intrabag.append(np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),))) # each row contains words for each containing frame
              gridded_words_overall.append(np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),)))
         
-    bovwcodebook[i].gridded_code=calc_bovw(np.squeeze(np.asarray(training_gridded_intrabag),axis=(1,)), kmeans_codebook_gridded)  #saves gridded Bovw for the whole bag     
-    bovwcodebook[i].words=np.asarray(gridded_words_intrabag) # all words across all frames wihin the bag i           
+    current_bovwg_ridded_code=calc_bovw(np.squeeze(np.asarray(training_gridded_intrabag),axis=(1,)), kmeans_codebook_gridded)  #saves gridded Bovw for the whole bag     
+    current_bovw_words=np.asarray(gridded_words_intrabag) # all words across all frames wihin the bag i           
+    gridded_bovwtable.append([(current_bovwg_ridded_code,current_bovw_words)])
     
 print(len(gridded_words_overall))
 new_word_representation,dictionary=embedding_func(gridded_words_overall,embedding_size)
@@ -479,18 +489,22 @@ new_word_representation,dictionary=embedding_func(gridded_words_overall,embeddin
 
 class glovefeature_hdf(tb.IsDescription):
     glove_words= tb.Float32Col(embedding_size, pos=1) 
-glovefileh = tb.open_file('glovefeatures5.h5', mode='w')
+glovefileh = tb.open_file('glovefeatures.h5', mode='w')
 glovetable = glovefileh.create_table(glovefileh.root, 'table', glovefeature_hdf,"A table") 
 
+gridded_bovwfileh.close()
+gridded_bovwfileh = tb.open_file('gridded_bovwfeatures.h5', mode='r')
+gridded_bovwtable = gridded_bovwfileh.root.table
+ 
 
 for i in xrange(num_bags_overall):
-    current_bag_words=np.ravel(bovwcodebook[i].words)
+    current_bag_words=np.ravel(gridded_bovwtable[i]['words'])
     
     bag_new_rep=[]
     for j in xrange(current_bag_words.size):
         bag_new_rep.append(np.ravel(new_word_representation[dictionary[current_bag_words[j]]]))
-    bovwcodebook[i].glove_words=np.mean(np.transpose(bag_new_rep),axis=1)
-    
+    glovefeature_hdf.append([(np.mean(np.transpose(bag_new_rep),axis=1))])    
+     
     
 for i in xrange(num_frames_overall):
     current_frame_words=gridtable[i]['words']
@@ -499,6 +513,11 @@ for i in xrange(num_frames_overall):
         frame_new_rep.append(np.ravel(new_word_representation[dictionary[current_frame_words[j]]]))
     glovetable.append(np.mean(np.transpose(frame_new_rep),axis=1))
     
+
+
+glovefileh.close()
+glovefileh = tb.open_file('glovefeatures.h5', mode='r')
+glovetable = gridded_bovwfileh.root.table
 
 # dic_keys=old gridded Words
 # dic_values= position of the word in dictionary
@@ -522,9 +541,9 @@ Video file level containing BOVW
 print("Video file level containing BOVW")
 for i in xrange(num_videos):
      videofile[i].filename=unique_video_files[i]
-     current_contained_bovws= [ind for ind in range(len(bovwcodebook)) if bovwcodebook[ind].filename == unique_video_files[i]]
+     current_contained_bovws= [ind for ind in range(bovwtable.nrows) if bovwtable[ind]['filename'] == unique_video_files[i]]
      videofile[i].contained_bovws=current_contained_bovws
-     videofile[i].category= bovwcodebook[current_contained_bovws[len(current_contained_bovws)//2]].category
+     videofile[i].category= bovwtable[current_contained_bovws[len(current_contained_bovws)//2]]['category']
      # Format the training and testing for TFlearn LSTM model
      chunks_bovws_ind=list(chunks(current_contained_bovws,num_LSTMs))
      if len(chunks_bovws_ind[len(chunks_bovws_ind)-1])<num_LSTMs:
@@ -534,10 +553,10 @@ for i in xrange(num_videos):
          cat_list.append(dirs.index(videofile[i].category))
          for timestep in xrange(num_LSTMs):
              overall_bovw_ind.append(current_bovw_chunk_ind[timestep])
-             current_bovw_code=bovwcodebook[current_bovw_chunk_ind[timestep]].code
-             current_glove_words=bovwcodebook[current_bovw_chunk_ind[timestep]].glove_words
+             current_bovw_code=bovwtable[current_bovw_chunk_ind[timestep]]['code']
+             current_glove_words=glovetable[current_bovw_chunk_ind[timestep]]['glove_words']
              X_bovw_code.append(current_bovw_code)
-             X_raw_code.append(frametable[bovwcodebook[current_bovw_chunk_ind[timestep]].middle_frame]['rawfeature'])
+             X_raw_code.append(frametable[bovwtable[current_bovw_chunk_ind[timestep]]['middle_frame']]['rawfeature'])
              X_glove_code.append(current_glove_words)
              X_sample_timestep.append((sample_ind,timestep))
          sample_ind=sample_ind+1
