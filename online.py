@@ -408,14 +408,17 @@ class bovwfeature_hdf(tb.IsDescription):
     code=tb.Float32Col(kmeans_codebook_size_holistic,pos=5)
     
  
-class gridded_bovwfeature_hdf(tb.IsDescription):
-    gridded_code=tb.Int32Col(kmeans_codebook_size_gridded,pos=1)
-    words=tb.Int32Col(shape=(bovw_size,N*N),pos=2)
  
   
     
 bovwfileh = tb.open_file('bovwfeatures.h5', mode='w')
 bovwtable = bovwfileh.create_table(bovwfileh.root, 'table', bovwfeature_hdf,"A table") 
+
+
+class gridded_bovwfeature_hdf(tb.IsDescription):
+    gridded_code=tb.Int32Col(kmeans_codebook_size_gridded,pos=1)
+    words=tb.Int32Col(shape=(bovw_size,N*N),pos=2)
+
 
 gridded_bovwfileh = tb.open_file('gridded_bovwfeatures.h5', mode='w')
 gridded_bovwtable = gridded_bovwfileh.create_table(gridded_bovwfileh.root, 'table', gridded_bovwfeature_hdf,"A table") 
@@ -503,21 +506,15 @@ for i in xrange(num_bags_overall):
     bag_new_rep=[]
     for j in xrange(current_bag_words.size):
         bag_new_rep.append(np.ravel(new_word_representation[dictionary[current_bag_words[j]]]))
-    glovefeature_hdf.append([(np.mean(np.transpose(bag_new_rep),axis=1))])    
+    glovetable.append(np.mean(np.transpose(bag_new_rep),axis=1))    
      
-    
-for i in xrange(num_frames_overall):
-    current_frame_words=gridtable[i]['words']
-    frame_new_rep=[]
-    for j in xrange(current_frame_words.size):
-        frame_new_rep.append(np.ravel(new_word_representation[dictionary[current_frame_words[j]]]))
-    glovetable.append(np.mean(np.transpose(frame_new_rep),axis=1))
+     
     
 
 
 glovefileh.close()
 glovefileh = tb.open_file('glovefeatures.h5', mode='r')
-glovetable = gridded_bovwfileh.root.table
+glovetable = glovefileh.root.table
 
 # dic_keys=old gridded Words
 # dic_values= position of the word in dictionary
