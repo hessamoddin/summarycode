@@ -3,7 +3,6 @@ from __future__ import print_function
 
 from keras.models import Sequential
 from keras.layers import Dense, Activation,LSTM
-from keras.initializations import normal, identity
 from keras.optimizers import RMSprop
 from keras.utils import np_utils
 from scipy.stats import multivariate_normal
@@ -209,55 +208,55 @@ Fisher Vector
 https://github.com/jacobgil/pyfishervector/blob/master/fisher.py
 """
      
-def likelihood_moment(x, ytk, moment):	
-	x_moment = np.power(np.float32(x), moment) if moment > 0 else np.float32([1])
-	return x_moment * ytk
-	
+def likelihood_moment(x, ytk, moment):    
+    x_moment = np.power(np.float32(x), moment) if moment > 0 else np.float32([1])
+    return x_moment * ytk
+    
 def likelihood_statistics(samples, means, covs, weights):
-	gaussians, s0, s1,s2 = {}, {}, {}, {}
-#	samples = zip(range(0, len(samples)), samples)
-	
-	g = [multivariate_normal(mean=means[k], cov=covs[k]) for k in range(0, len(weights))]
-	for index, x in samples:
-		for k in range(0, len(weights)):
-			gaussians[index] = np.array([g_k.pdf(x) for g_k in g])
+    gaussians, s0, s1,s2 = {}, {}, {}, {}
+#    samples = zip(range(0, len(samples)), samples)
+    
+    g = [multivariate_normal(mean=means[k], cov=covs[k]) for k in range(0, len(weights))]
+    for index, x in samples:
+        for k in range(0, len(weights)):
+            gaussians[index] = np.array([g_k.pdf(x) for g_k in g])
 
-	for k in range(0, len(weights)):
-		s0[k], s1[k], s2[k] = 0, 0, 0
-		for index, x in samples:
-			probabilities = np.multiply(gaussians[index], weights)
-			probabilities = probabilities / np.sum(probabilities)
-			s0[k] = s0[k] + likelihood_moment(x, probabilities[k], 0)
-			s1[k] = s1[k] + likelihood_moment(x, probabilities[k], 1)
-			s2[k] = s2[k] + likelihood_moment(x, probabilities[k], 2)
+    for k in range(0, len(weights)):
+        s0[k], s1[k], s2[k] = 0, 0, 0
+        for index, x in samples:
+            probabilities = np.multiply(gaussians[index], weights)
+            probabilities = probabilities / np.sum(probabilities)
+            s0[k] = s0[k] + likelihood_moment(x, probabilities[k], 0)
+            s1[k] = s1[k] + likelihood_moment(x, probabilities[k], 1)
+            s2[k] = s2[k] + likelihood_moment(x, probabilities[k], 2)
 
-	return s0, s1, s2
+    return s0, s1, s2
 
 def fisher_vector_weights(s0, s1, s2, means, covs, w, T):
-	return np.float32([((s0[k] - T * w[k]) / np.sqrt(w[k]) ) for k in range(0, len(w))])
+    return np.float32([((s0[k] - T * w[k]) / np.sqrt(w[k]) ) for k in range(0, len(w))])
 
 def fisher_vector_means(s0, s1, s2, means, sigma, w, T):
-	return np.float32([(s1[k] - means[k] * s0[k]) / (np.sqrt(w[k] * sigma[k])) for k in range(0, len(w))])
+    return np.float32([(s1[k] - means[k] * s0[k]) / (np.sqrt(w[k] * sigma[k])) for k in range(0, len(w))])
 
 def fisher_vector_sigma(s0, s1, s2, means, sigma, w, T):
-	return np.float32([(s2[k] - 2 * means[k]*s1[k]  + (means[k]*means[k] - sigma[k]) * s0[k]) / (np.sqrt(2*w[k])*sigma[k])  for k in range(0, len(w))])
+    return np.float32([(s2[k] - 2 * means[k]*s1[k]  + (means[k]*means[k] - sigma[k]) * s0[k]) / (np.sqrt(2*w[k])*sigma[k])  for k in range(0, len(w))])
 
 def normalize(fisher_vector):
-	v = np.sqrt(abs(fisher_vector)) * np.sign(fisher_vector)
-	return v / np.sqrt(np.dot(v, v))
+    v = np.sqrt(abs(fisher_vector)) * np.sign(fisher_vector)
+    return v / np.sqrt(np.dot(v, v))
 
 def fisher_vector(samples, means, covs, w):
-	s0, s1, s2 =  likelihood_statistics(samples, means, covs, w)
-	T = samples.shape[0]
-	covs = np.float32([np.diagonal(covs[k]) for k in range(0, covs.shape[0])])
-	a = fisher_vector_weights(s0, s1, s2, means, covs, w, T)
-	b = fisher_vector_means(s0, s1, s2, means, covs, w, T)
-	c = fisher_vector_sigma(s0, s1, s2, means, covs, w, T)
-	fv = np.concatenate([np.concatenate(a), np.concatenate(b), np.concatenate(c)])
-	fv = normalize(fv)
-	return fv
+    s0, s1, s2 =  likelihood_statistics(samples, means, covs, w)
+    T = samples.shape[0]
+    covs = np.float32([np.diagonal(covs[k]) for k in range(0, covs.shape[0])])
+    a = fisher_vector_weights(s0, s1, s2, means, covs, w, T)
+    b = fisher_vector_means(s0, s1, s2, means, covs, w, T)
+    c = fisher_vector_sigma(s0, s1, s2, means, covs, w, T)
+    fv = np.concatenate([np.concatenate(a), np.concatenate(b), np.concatenate(c)])
+    fv = normalize(fv)
+    return fv
 
-	
+    
  
 
  
@@ -285,7 +284,7 @@ videofile=[ videofile() for i in range(1000000)]
 
  
    
-framefileh = tb.open_file('framefeatures5.h5', mode='r')
+framefileh = tb.open_file('framefeatures4.h5', mode='r')
 frametable=framefileh.root.table
 rf=frametable[2]["rawfeature"]
  
@@ -439,7 +438,7 @@ for i in xrange(num_bovw_all):
          num_frames_overall=num_frames_overall+len(current_contained_frames)
         
          
-        	# take the middle frame of the bag of visual words as its examplar
+            # take the middle frame of the bag of visual words as its examplar
          middle_frame=current_contained_frames[len(current_contained_frames)//2]
  
          # categotry of the current bag = category of its middle frame= 
@@ -609,17 +608,10 @@ X_glove_test=X_glove[test_ind_2,:]
 X_glove_train=X_glove[train_ind_2,:]
 
  
-
 print('Evaluate IRNN with BOVW...')
 model = Sequential()
 
-model.add(LSTM(output_dim=hidden_units,
-                    init=lambda shape, name: normal(shape, scale=0.001, name=name),
-                    inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
-                    activation='relu',
-                    input_shape=X_train.shape[1:],return_sequences=True))
-model.add(LSTM(output_dim=hidden_units))
-
+model.add(LSTM(output_dim=hidden_units,activation='relu',input_shape=X_train.shape[1:]))
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
@@ -645,12 +637,8 @@ print('IRNN test accuracy:', scores[1])
 print('Evaluate IRNN with raw frames ...')
 model = Sequential()
 
-
-model.add(LSTM(output_dim=hidden_units,
-                    init=lambda shape, name: normal(shape, scale=0.001, name=name),
-                    inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
-                    activation='relu',
-                    input_shape=X_raw_train.shape[1:]))
+model.add(LSTM(output_dim=hidden_units,activation='relu',input_shape=X_raw_train.shape[1:]))
+ 
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
@@ -671,11 +659,8 @@ print('IRNN test accuracy:', scores[1])
 print('Evaluate IRNN with Glove...')
 model = Sequential()
 
-model.add(LSTM(output_dim=hidden_units,
-                    init=lambda shape, name: normal(shape, scale=0.001, name=name),
-                    inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
-                    activation='relu',
-                    input_shape=X_glove_train.shape[1:]))
+model.add(LSTM(output_dim=hidden_units,activation='relu',input_shape=X_glove_train.shape[1:]))
+ 
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
@@ -688,4 +673,3 @@ model.fit(X_glove_train, Y_train, nb_epoch=nb_epochs,verbose=0)
 scores = model.evaluate(X_glove_test, Y_test, verbose=0)
 #print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
- 
