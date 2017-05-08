@@ -156,7 +156,7 @@ def learn_kmeans_codebook(X, codebook_size=1000, seed=None):
     logger.info("Learning codebook with %d words ..." % codebook_size)
     # Run vector-quantization
                 
-    mbk = MiniBatchKMeans(init='k-means++', n_clusters=codebook_size, batch_size=100,
+    mbk = MiniBatchKMeans(init='k-means++', n_clusters=codebook_size, batch_size=1000,
                       n_init=10, max_no_improvement=10, verbose=0)
     mbk.fit(X)
 
@@ -259,23 +259,9 @@ def fisher_vector(samples, means, covs, w):
     
  
 
- 
-
- 
-
-
-     
-
 
 
 videofile=[ videofile() for i in range(1000000)]
-
-
- 
-
- 
-
-
  
  
 
@@ -284,7 +270,7 @@ videofile=[ videofile() for i in range(1000000)]
 
  
    
-framefileh = tb.open_file('framefeatures4.h5', mode='r')
+framefileh = tb.open_file('framefeatures5.h5', mode='r')
 frametable=framefileh.root.table
 rf=frametable[2]["rawfeature"]
  
@@ -300,41 +286,32 @@ test_ind_1=np.delete(all_frames_ind_1,train_ind_1)
     
 
 # Construct training and testing features for codeboook generation
-overall_holisitc_training=[]
-testing_list=[]
-glove_training_list=[]
-glove_testing_list=[]
-
-print("construct training and testing features")
-for i in train_ind_1:
-    overall_holisitc_training.append(frametable[i]['rawfeature'])
-    glove_training_list.append(frametable[i]['griddedfeature'])
-
-for i in test_ind_1:
-    testing_list.append(frametable[i]['rawfeature'])
-    glove_testing_list.append(frametable[i]['griddedfeature'])
-
-
-
-print("overall_gridded_training") 
-# Finalizing the NLP kmeans training set for gridden Daisy feature and 
-# transforming it through Glove
-overall_gridded_training=[]
-
-num_samples=len(glove_training_list)
-num_row=glove_training_list[0].shape[0]
-num_col=glove_training_list[0].shape[1]
  
 
-for sample_id in xrange(num_samples):
-    for row_id in xrange(num_row):
-        for col_id in xrange(num_col):
-            current_gridded_feature=glove_training_list[sample_id]
-            # Accumulate all the gridded Daisy features from all frames
-            # in training set; same training set for holistic Daisy used
-            # for regular Kmeans codebook generation
-            overall_gridded_training.append(current_gridded_feature[row_id,col_id,:])
 
+#class overall_training_hdf(tb.IsDescription):
+#    overall_holisitc_training = tb.Float32Col(7000, pos=1) 
+#    glove_training_list = tb.Float32Col(shape=(N,N,7000), pos=2) 
+    
+ 
+
+print("construct training and testing features")
+
+
+
+
+frametable[train_ind_1]['griddedfeature']
+
+
+ 
+
+num_train_samples=len(train_ind_1)
+num_samples=frametable.shape[0]
+num_row=frametable[0]['griddedfeature'].shape[0]
+num_col=frametable[0]['griddedfeature'].shape[1]
+
+
+ 
 
 
 # Ok, this is the summary of what happened so far:
@@ -344,23 +321,29 @@ for sample_id in xrange(num_samples):
 
 
 print("overall_holisitc_training")
-# Finalizing the kmeans training set 
-overall_holisitc_training=np.asarray(overall_holisitc_training)
-overall_gridded_training=np.asarray(overall_gridded_training)
-
-# first method of bovw calculation: kmeans
-kmeans_codebook_size_gridded=int(math.sqrt(math.floor(len(overall_gridded_training))))
-kmeans_codebook_size_holistic=int(math.sqrt(math.floor(len(overall_holisitc_training))))
-
-
  
-  
+# first method of bovw calculation: kmeans
+kmeans_codebook_size_holistic=int(math.sqrt(math.floor(num_samples)))
+
+
+
+
+
+"""
+break point
+
+"""
+ 
 
 
 print("learn_kmeans_codebook")
 # Final codebook created by Kmeans
-kmeans_codebook_holistic=learn_kmeans_codebook(overall_holisitc_training, kmeans_codebook_size_holistic)
-kmeans_codebook_gridded=learn_kmeans_codebook(overall_gridded_training, kmeans_codebook_size_gridded)
+kmeans_codebook_holistic=learn_kmeans_codebook(frametable[:]['rawfeature'], kmeans_codebook_size_holistic)
+new_dim=np.prod(frametable[:]['griddedfeature'].shape[0:3]),frametable[:]['griddedfeature'].shape[3]
+kmeans_codebook_size_gridded=int(math.sqrt(new_dim[0]))
+
+gridded_nowungridded=frametable[:]['griddedfeature'].reshape(new_dim)
+kmeans_codebook_gridded=learn_kmeans_codebook(gridded_nowungridded, kmeans_codebook_size_gridded)
 
 class gridfeature_hdf(tb.IsDescription):
     gridded_code = tb.Float32Col(kmeans_codebook_size_gridded , pos=1) 
@@ -369,7 +352,7 @@ gridfileh = tb.open_file('gridfeatures.h5', mode='w')
 gridtable = gridfileh.create_table(gridfileh.root, 'table', gridfeature_hdf,"A table") 
  
 # second method of bovw calculation: GMM (fisher vector) ... to be finished later
-m,c,w=estimate_gm(overall_holisitc_training,kmeans_codebook_size_holistic)
+m,c,w=estimate_gm(frametable[:]['rawfeature'],kmeans_codebook_size_holistic)
 
 # The number of all bovws in dataset                   
 
@@ -379,6 +362,7 @@ dirs = pickle.load( open( "dirs.p", "rb" ) )
 
 num_bovw_all=frametable[number_frames_all-1]['bovw_id']+1
 # Number of all files
+
 unique_video_files=list(set(file_counter))
 num_videos=len(unique_video_files)
 
