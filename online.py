@@ -270,7 +270,7 @@ videofile=[ videofile() for i in range(1000000)]
 
  
    
-framefileh = tb.open_file('framefeatures5.h5', mode='r')
+framefileh = tb.open_file('framefeatures4.h5', mode='r')
 frametable=framefileh.root.table
 rf=frametable[2]["rawfeature"]
  
@@ -300,8 +300,7 @@ print("construct training and testing features")
 
 
 
-frametable[train_ind_1]['griddedfeature']
-
+ 
 
  
 
