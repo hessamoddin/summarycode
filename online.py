@@ -270,10 +270,9 @@ videofile=[ videofile() for i in range(1000000)]
 
  
    
-framefileh = tb.open_file('framefeatures4.h5', mode='r')
+framefileh = tb.open_file('framefeatures5.h5', mode='r')
 frametable=framefileh.root.table
-rf=frametable[2]["rawfeature"]
- 
+  
 number_frames_all=frametable.nrows
 
 
