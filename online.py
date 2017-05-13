@@ -336,6 +336,7 @@ break point
 
 print("learn_kmeans_codebook")
 # Final codebook created by Kmeans
+
 kmeans_codebook_holistic=learn_kmeans_codebook(frametable[:]['rawfeature'], kmeans_codebook_size_holistic)
 new_dim=np.prod(frametable[:]['griddedfeature'].shape[0:3]),frametable[:]['griddedfeature'].shape[3]
 kmeans_codebook_size_gridded=int(math.sqrt(new_dim[0]))
