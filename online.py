@@ -270,7 +270,7 @@ videofile=[ videofile() for i in range(1000000)]
 
  
    
-framefileh = tb.open_file('framefeatures5.h5', mode='r')
+framefileh = tb.open_file('framefeatures4.h5', mode='r')
 frametable=framefileh.root.table
   
 number_frames_all=frametable.nrows
@@ -304,7 +304,6 @@ print("construct training and testing features")
  
 
 num_train_samples=len(train_ind_1)
-num_samples=frametable.shape[0]
 num_row=frametable[0]['griddedfeature'].shape[0]
 num_col=frametable[0]['griddedfeature'].shape[1]
 
@@ -321,38 +320,35 @@ num_col=frametable[0]['griddedfeature'].shape[1]
 print("overall_holisitc_training")
  
 # first method of bovw calculation: kmeans
-kmeans_codebook_size_holistic=int(math.sqrt(math.floor(num_samples)))
+kmeans_codebook_size_holistic=bovw_size*bovw_size
+kmeans_codebook_size_gridded=kmeans_codebook_size_holistic
 
-
-
-
-
-"""
-break point
-
-"""
  
-
 
 print("learn_kmeans_codebook")
 # Final codebook created by Kmeans
 
-kmeans_codebook_holistic=learn_kmeans_codebook(frametable[:]['rawfeature'], kmeans_codebook_size_holistic)
-new_dim=np.prod(frametable[:]['griddedfeature'].shape[0:3]),frametable[:]['griddedfeature'].shape[3]
-kmeans_codebook_size_gridded=int(math.sqrt(new_dim[0]))
 
-gridded_nowungridded=frametable[:]['griddedfeature'].reshape(new_dim)
-kmeans_codebook_gridded=learn_kmeans_codebook(gridded_nowungridded, kmeans_codebook_size_gridded)
+kmeans_ind=sample(range(frametable.shape[0]),1000)
+kmeans_codebook_holistic=learn_kmeans_codebook(frametable[kmeans_ind]['rawfeature'], kmeans_codebook_size_holistic)
+
+
+
+new_dim=np.prod(frametable[kmeans_ind]['griddedfeature'].shape[0:3]),frametable[kmeans_ind]['griddedfeature'].shape[3]
+gridded_nowungridded=frametable[kmeans_ind]['griddedfeature'].reshape(new_dim)
+ 
+
+kmeans_gridded_ind=sample(range(gridded_nowungridded.shape[0]),1000)
+kmeans_codebook_gridded=learn_kmeans_codebook(gridded_nowungridded[kmeans_gridded_ind][:], kmeans_codebook_size_holistic)
 
 class gridfeature_hdf(tb.IsDescription):
-    gridded_code = tb.Float32Col(kmeans_codebook_size_gridded , pos=1) 
-    words = tb.Int32Col(num_row*num_col, pos=2) 
+    gridded_code = tb.Float64Col(kmeans_codebook_size_gridded , pos=1) 
+    words = tb.Int64Col(num_row*num_col, pos=2) 
 gridfileh = tb.open_file('gridfeatures.h5', mode='w')
 gridtable = gridfileh.create_table(gridfileh.root, 'table', gridfeature_hdf,"A table") 
  
 # second method of bovw calculation: GMM (fisher vector) ... to be finished later
-m,c,w=estimate_gm(frametable[:]['rawfeature'],kmeans_codebook_size_holistic)
-
+ 
 # The number of all bovws in dataset                   
 
 file_counter = pickle.load( open( "file_counter.p", "rb" ) )   
