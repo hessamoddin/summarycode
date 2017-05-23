@@ -3,7 +3,6 @@ from __future__ import print_function
 
 from keras.models import Sequential
 from keras.layers import Dense, Activation,LSTM
-from keras.initializations import normal, identity
 from keras.optimizers import RMSprop
 from keras.utils import np_utils
 from scipy.stats import multivariate_normal
@@ -27,32 +26,26 @@ import os
 import imageio
 import os.path
 import scipy.sparse as sp
-import tables as tb
-np.set_printoptions(threshold=np.inf)
+
 
 
 """       
 Parameters
 """
-subsampling_rate=3
-Num_samples_per_video=5
+subsampling_rate=2
 bovw_size=30
-num_LSTMs=7
+num_LSTMs=10
 train_frac=0.5
 LSTM_overlap=0.25
 longest_allowed_frames=500
 batch_size = 1
 nb_epochs = 200
-hidden_units = 20
+hidden_units = 50
 learning_rate = 1e-6
 clip_norm = 1.0
 new_shape,step,radius=(240,360),50,20 # for Daisy feaure
-embedding_size=300 
-
-
- 
-
-
+embedding_size=100 
+     
 """       
 Define functions
 """
@@ -255,8 +248,7 @@ def fisher_vector(samples, means, covs, w):
 
  
 
-def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=60, radius=40):
-    N=5
+def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=80, radius=45):
     """Extract Daisy feature for a frame of video """
     if frame_no<num_frames-1: 
         frame = vid.get_data(frame_no)  
@@ -266,6 +258,7 @@ def Feature_Extractor_Fn(vid,num_frames,frame_no,new_shape=(360,480),step=60, ra
         daisy_1D=np.ravel(daisy_desc)
          
         """Extract Daisy feature for a patch from the frame of video """
+        N=4
         step_glove=int(step/N)
         radius_glove=int(radius/N)
         patch_shape_x=int(new_shape[0]/N)
@@ -312,22 +305,10 @@ Definition of objects to facilitate bovw feature construction
 """
 
  
-     
- 
- 
-     
 
-class framefeature_hdf(tb.IsDescription):
-    filename        = tb.StringCol(200, pos=1) 
-    category        = tb.StringCol(10,pos=2)        
-    rawfeature      = tb.Float32Col(shape=(1,7000), pos=3) 
-    bovw_id         = tb.IntCol(pos=4) 
-    frame_id        = tb.IntCol(pos=5)  
-    grid_feature    = tb.Float32Col(shape=(5,5,7000), pos=6) 
 
-fileh = tb.open_file('videofeatures.h5', mode='w')
-table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
-
+  
+  
   
 class framefeature(object):
     """class of video features and other methadata"""
@@ -367,7 +348,7 @@ framefeature  = [ framefeature() for i in range(1000000)]
 bovwcodebook=[ bovwcodebook() for i in range(1000000)]
 videofile=[ videofile() for i in range(1000000)]
 
-
+ 
 
 """ ************************
 ****************************
@@ -375,11 +356,12 @@ Main body of the code
 ***************************
 ************************""" 
 
+# current working directory for the code
 cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos2/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos5/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -388,7 +370,6 @@ dirs = os.listdir( datasetpath )
 This FOR loop extracts the video frames feature and store them in 
 the array of framefeature objects associated with each frame
 """
-
 print("Thus begins feature extraction!")
 i=0
 file_counter=[]
@@ -406,7 +387,7 @@ for cat in dirs:
                  # full name and path for the current video file
                  videopath=path.join(cat_path,current_file)
                  try:
-                                      # read the current video file
+                     # read the current video file
                      vid = imageio.get_reader(videopath,  'ffmpeg')
                      # The number of frames for this video
                      num_frames=vid._meta['nframes']
@@ -416,7 +397,7 @@ for cat in dirs:
                      # trim out the bag of videos frames in a way that each
                      #have bags number equal to multiples of bovw_size
                        # j is the frame index for the bvw processable parts of video
-                     for j in xrange(0,min(Num_samples_per_video*subsampling_rate*bovw_size*num_LSTMs,num_frames),subsampling_rate):
+                     for j in xrange(0,min(5*subsampling_rate*bovw_size*num_LSTMs,num_frames),subsampling_rate):
                          bovw_id=(i)//bovw_size  # every bovw_size block of frames
                          print("** frame no %d **" % j)	
                          
@@ -425,9 +406,12 @@ for cat in dirs:
                             # daisy_1D,surf_descs,sift_descs 		
                          # extract dausy features: for the whole frame or grid-wise for each frame
                          current_grid_feature,current_frame_feature=Feature_Extractor_Fn(vid,num_frames,j) 
-                         table.append([(videopath,cat,current_frame_feature,bovw_id,i,current_grid_feature)]) #filename,category,rawfeature,bovw_id,frame_id,griddedfeature
-                         
-
+                         framefeature[i].filename=videopath # take the name&path ofj the video containing the fraame
+                         framefeature[i].category=cat # take the category of the current video 
+                         framefeature[i].rawfeature=current_frame_feature #daisy feature for the whole video
+                         framefeature[i].bovw_id=bovw_id	#bag number in the video for this frame
+                         framefeature[i].frame_id=i # frame number in the video 
+                         framefeature[i].griddedfeature=current_grid_feature # gridded Daisy feature for this frame
                         # print(i)
                          #print(bovw_id)
                          #print(j*subsampling_rate)
@@ -444,29 +428,9 @@ for cat in dirs:
                      print("***")
 print("Finished raw feature extraction!")
 
- 
 
- 
-  
-
- 
-
-
-fileh.close()
-
- 
-
-  
 # The number of all (subsampled) frames in dataset                      
 number_frames_all=i  
-
-
-   
-fileh = tb.open_file('videofeatures.h5', mode='r')
-table_root=fileh.root.table
-current_row=table_root[0]
-rf=current_row["rawfeature"]
-fileh.close()
 
 
 
@@ -739,13 +703,7 @@ X_glove_train=X_glove[train_ind_2,:]
 print('Evaluate IRNN with BOVW...')
 model = Sequential()
 
-model.add(LSTM(output_dim=hidden_units,
-                    init=lambda shape, name: normal(shape, scale=0.001, name=name),
-                    inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
-                    activation='relu',
-                    input_shape=X_train.shape[1:],return_sequences=True))
-model.add(LSTM(output_dim=hidden_units))
-
+model.add(LSTM(output_dim=hidden_units,activation='relu',input_shape=X_train.shape[1:]))
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
@@ -756,6 +714,7 @@ model.compile(loss='categorical_crossentropy',
 model.fit(X_train, Y_train, nb_epoch=nb_epochs,verbose=0)
 
 scores = model.evaluate(X_test, Y_test, verbose=0)
+
 #print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
 
@@ -771,12 +730,8 @@ print('IRNN test accuracy:', scores[1])
 print('Evaluate IRNN with raw frames ...')
 model = Sequential()
 
-
-model.add(LSTM(output_dim=hidden_units,
-                    init=lambda shape, name: normal(shape, scale=0.001, name=name),
-                    inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
-                    activation='relu',
-                    input_shape=X_raw_train.shape[1:]))
+model.add(LSTM(output_dim=hidden_units,activation='relu',input_shape=X_raw_train.shape[1:]))
+ 
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
@@ -797,11 +752,8 @@ print('IRNN test accuracy:', scores[1])
 print('Evaluate IRNN with Glove...')
 model = Sequential()
 
-model.add(LSTM(output_dim=hidden_units,
-                    init=lambda shape, name: normal(shape, scale=0.001, name=name),
-                    inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
-                    activation='relu',
-                    input_shape=X_glove_train.shape[1:]))
+model.add(LSTM(output_dim=hidden_units,activation='relu',input_shape=X_glove_train.shape[1:]))
+ 
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
