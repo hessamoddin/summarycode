@@ -33,18 +33,18 @@ import scipy.sparse as sp
 Parameters
 """
 subsampling_rate=2
-bovw_size=30
-num_LSTMs=10
+bovw_size=10
+num_LSTMs=8
 train_frac=0.5
 LSTM_overlap=0.25
 longest_allowed_frames=500
-batch_size = 1
+batch_size = 10
 nb_epochs = 200
-hidden_units = 50
+hidden_units = 5
 learning_rate = 1e-6
 clip_norm = 1.0
 new_shape,step,radius=(240,360),50,20 # for Daisy feaure
-embedding_size=100 
+embedding_size=200
      
 """       
 Define functions
@@ -361,7 +361,7 @@ cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos5/')
+datasetpath=join(parent_dir,'Tour20/Tour20-Videos7/')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
