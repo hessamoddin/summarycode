@@ -19,12 +19,16 @@ import tables as tb
 """       
 Parameters
 """
-subsampling_rate=3
-bovw_size=30
+subsampling_rate=2
+bovw_size=15
 new_shape,step,radius=(360,480),50,20 # for Daisy feaure
-N=5
+N=4
 
 
+dir_var= "dirs4.p"
+file_counter="file_counter4.p"
+framefeatures='framefeatures4.h5'
+folder='Tour20-Videos4'
 """
 Define HDF database for frame features
 """
@@ -38,7 +42,7 @@ class framefeature_hdf(tb.IsDescription):
     griddedfeature    = tb.Float32Col(shape=(N,N,7000), pos=6) 
 
 
-fileh = tb.open_file('framefeatures5.h5', mode='w')
+fileh = tb.open_file(framefeatures, mode='w')
 table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
 
 
@@ -51,7 +55,7 @@ Define functions
  
 
 def Feature_Extractor_Fn(vid,num_frames,frame_no,N,new_shape=(360,480),step=60, radius=40):
-    N=5
+    N=4
     """Extract Daisy feature for a frame of video """
     if frame_no<num_frames-1: 
         frame = vid.get_data(frame_no)  
@@ -112,7 +116,7 @@ cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos5/')
+datasetpath=join(parent_dir,'Tour20/',folder)
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -177,8 +181,8 @@ for cat in dirs:
                      print("***")
 print("Finished raw feature extraction!")
 file_counter=list(set(file_counter))
-pickle.dump( file_counter, open( "file_counter5.p", "wb" ) )
-pickle.dump( dirs, open( "dirs5.p", "wb" ) )
+pickle.dump( file_counter, open("file_counter4", "wb" ) )
+pickle.dump( dirs, open(dir_var, "wb" ) )
 
 
  
@@ -194,11 +198,11 @@ fileh.close()
   
  
    
-fileh = tb.open_file('framefeatures5.h5', mode='r')
+fileh = tb.open_file(framefeatures, mode='r')
 table_root=fileh.root.table
 current_row=table_root[0]
 print(current_row)
 fileh.close()
 
 
- 
+     
