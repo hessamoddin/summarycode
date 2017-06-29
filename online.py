@@ -12,7 +12,6 @@ from glove import Glove
  
 
 import array
-import math
 import logging
 import sklearn.mixture.gmm as gm
 import numpy as np
@@ -25,23 +24,27 @@ import tables as tb
 Parameters
 """
 Num_samples_per_video=5
-bovw_size=30
-num_LSTMs=7
+bovw_size=15
+num_LSTMs=8
 train_frac=0.5
 LSTM_overlap=0.25
 longest_allowed_frames=500
 batch_size = 1
 nb_epochs = 200
-hidden_units = 20
+hidden_units = 6
 learning_rate = 1e-6
 clip_norm = 1.0
-new_shape,step,radius=(240,360),50,20 # for Daisy feaure
-embedding_size=300 
-N=5
+embedding_size=2000
+N=4
 
 
- 
-        
+filecounter="file_counter4.p"
+framefeatures='framefeatures4.h5'
+gridfeatures='gridfeatures4.h5'
+gridded_bovwfeatures='gridded_bovwfeatures4.h5'
+glovefeatures='glovefeatures4.h5'
+bovwfeatures='bovwfeatures4.h5'
+dir_var="dirs4.p"
 
   
  
@@ -156,7 +159,7 @@ def learn_kmeans_codebook(X, codebook_size=1000, seed=None):
     logger.info("Learning codebook with %d words ..." % codebook_size)
     # Run vector-quantization
                 
-    mbk = MiniBatchKMeans(init='k-means++', n_clusters=codebook_size, batch_size=1000,
+    mbk = MiniBatchKMeans(init='k-means++', n_clusters=codebook_size, batch_size=100,
                       n_init=10, max_no_improvement=10, verbose=0)
     mbk.fit(X)
 
@@ -270,7 +273,7 @@ videofile=[ videofile() for i in range(1000000)]
 
  
    
-framefileh = tb.open_file('framefeatures4.h5', mode='r')
+framefileh = tb.open_file(framefeatures, mode='r')
 frametable=framefileh.root.table
   
 number_frames_all=frametable.nrows
@@ -321,6 +324,8 @@ print("overall_holisitc_training")
  
 # first method of bovw calculation: kmeans
 kmeans_codebook_size_holistic=bovw_size*bovw_size
+kmeans_codebook_size_gridded=N*kmeans_codebook_size_holistic
+kmeans_codebook_size_holistic=100
 kmeans_codebook_size_gridded=kmeans_codebook_size_holistic
 
  
@@ -344,22 +349,17 @@ kmeans_codebook_gridded=learn_kmeans_codebook(gridded_nowungridded[kmeans_gridde
 class gridfeature_hdf(tb.IsDescription):
     gridded_code = tb.Float64Col(kmeans_codebook_size_gridded , pos=1) 
     words = tb.Int64Col(num_row*num_col, pos=2) 
-gridfileh = tb.open_file('gridfeatures.h5', mode='w')
+gridfileh = tb.open_file(gridfeatures, mode='w')
 gridtable = gridfileh.create_table(gridfileh.root, 'table', gridfeature_hdf,"A table") 
  
 # second method of bovw calculation: GMM (fisher vector) ... to be finished later
  
 # The number of all bovws in dataset                   
 
-file_counter = pickle.load( open( "file_counter.p", "rb" ) )   
-dirs = pickle.load( open( "dirs.p", "rb" ) )   
 
 
 num_bovw_all=frametable[number_frames_all-1]['bovw_id']+1
 # Number of all files
-
-unique_video_files=list(set(file_counter))
-num_videos=len(unique_video_files)
 
 """
 Codebook generation for representation of Bag of Visual Words
@@ -389,7 +389,7 @@ class bovwfeature_hdf(tb.IsDescription):
  
   
     
-bovwfileh = tb.open_file('bovwfeatures.h5', mode='w')
+bovwfileh = tb.open_file(bovwfeatures, mode='w')
 bovwtable = bovwfileh.create_table(bovwfileh.root, 'table', bovwfeature_hdf,"A table") 
 
 
@@ -398,7 +398,7 @@ class gridded_bovwfeature_hdf(tb.IsDescription):
     words=tb.Int32Col(shape=(bovw_size,N*N),pos=2)
 
 
-gridded_bovwfileh = tb.open_file('gridded_bovwfeatures.h5', mode='w')
+gridded_bovwfileh = tb.open_file(gridded_bovwfeatures, mode='w')
 gridded_bovwtable = gridded_bovwfileh.create_table(gridded_bovwfileh.root, 'table', gridded_bovwfeature_hdf,"A table") 
  
     
@@ -406,10 +406,11 @@ gridded_bovwtable = gridded_bovwfileh.create_table(gridded_bovwfileh.root, 'tabl
 num_frames_overall=0
 num_bags_overall=0
 gridded_words_overall=[]  # All
-for i in xrange(num_bovw_all):
+for i in xrange(num_bovw_all-1):
+    print('Bag', i ,'out of' ,num_bovw_all)
     # which frames does the current Bovw contain
     
-    current_contained_frames= [ind for ind in range(number_frames_all) if frametable[ind]['bovw_id'] == i]
+    current_contained_frames= range(i*bovw_size,i*bovw_size++bovw_size)
     
     
     if len(current_contained_frames)==bovw_size:
@@ -470,15 +471,15 @@ new_word_representation,dictionary=embedding_func(gridded_words_overall,embeddin
 
 class glovefeature_hdf(tb.IsDescription):
     glove_words= tb.Float32Col(embedding_size, pos=1) 
-glovefileh = tb.open_file('glovefeatures.h5', mode='w')
+glovefileh = tb.open_file(glovefeatures, mode='w')
 glovetable = glovefileh.create_table(glovefileh.root, 'table', glovefeature_hdf,"A table") 
 
 gridded_bovwfileh.close()
-gridded_bovwfileh = tb.open_file('gridded_bovwfeatures.h5', mode='r')
+gridded_bovwfileh = tb.open_file(gridded_bovwfeatures, mode='r')
 gridded_bovwtable = gridded_bovwfileh.root.table
  
 
-for i in xrange(num_bags_overall):
+for i in xrange(num_bags_overall-1):
     current_bag_words=np.ravel(gridded_bovwtable[i]['words'])
     
     bag_new_rep=[]
@@ -491,16 +492,10 @@ for i in xrange(num_bags_overall):
 
 
 glovefileh.close()
-glovefileh = tb.open_file('glovefeatures.h5', mode='r')
+glovefileh = tb.open_file(glovefeatures, mode='r')
 glovetable = glovefileh.root.table
 
-# dic_keys=old gridded Words
-# dic_values= position of the word in dictionary
-query=11
-target=23
-sim=np.dot(new_word_representation[dictionary[query]],new_word_representation[dictionary[target]])
-print(sim)
-
+ 
 
 cat_list=[]
 sample_ind=0
@@ -512,6 +507,43 @@ X_sample_timestep=[]
 """
 Video file level containing BOVW
 """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+file_counter = pickle.load( open( filecounter, "rb" ) )   
+dirs = pickle.load( open( dir_var, "rb" ) )   
+unique_video_files=list(set(file_counter))
+num_videos=len(unique_video_files)
+
+
+
 
 print("Video file level containing BOVW")
 for i in xrange(num_videos):
@@ -539,12 +571,12 @@ for i in xrange(num_videos):
          
  
 # Training samples to LSTM (num samples X num timesteps aka LSTMS X feature dim)
-X=np.zeros((sample_ind,num_LSTMs,len(X_bovw_code[0])))
+X_bovw=np.zeros((sample_ind,num_LSTMs,len(X_bovw_code[0])))
 
 for i in xrange(len(overall_bovw_ind)):
     ind1=X_sample_timestep[i][0]
     ind2=X_sample_timestep[i][1]
-    X[ind1,ind2,:]=X_bovw_code[i]
+    X_bovw[ind1,ind2,:]=X_bovw_code[i]
     
     
 # Training samples to LSTM (num samples X num timesteps aka LSTMS X feature dim)
@@ -556,13 +588,77 @@ for i in xrange(len(overall_bovw_ind)):
     X_raw[ind1,ind2,:]=X_raw_code[i]    
 
 X_glove=np.zeros((sample_ind,num_LSTMs,len(X_glove_code[0])))
+# Training samples to LSTM (num samples X num timesteps aka LSTMS X feature dim)
+
 
 for i in xrange(len(overall_bovw_ind)):
     ind1=X_sample_timestep[i][0]
     ind2=X_sample_timestep[i][1]
     X_glove[ind1,ind2,:]=X_glove_code[i]
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    """ WHY X_glove_code is all zeros?
+    there should be different number of training samples for raw,bovw,glove
+    Labels should be different for these settings
+    """
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
   
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 # Split training and testing sets for frames
 all_frames_ind_2=range(len(cat_list))
 train_ind_2= sample(all_frames_ind_2,int(0.5*len(cat_list)))
@@ -573,8 +669,8 @@ nb_classes=len(dirs)
 Y = np_utils.to_categorical(np.asarray(cat_list),nb_classes )
 
 
-X_test=X[test_ind_2,:]   
-X_train=X[train_ind_2,:]    
+X_bovw_test=X_bovw[test_ind_2,:]   
+X_bovw_train=X_bovw[train_ind_2,:]    
 Y_test=Y[test_ind_2,:]   
 Y_train=Y[train_ind_2,:]  
 
@@ -586,11 +682,29 @@ X_raw_train=X_raw[train_ind_2,:]
 X_glove_test=X_glove[test_ind_2,:]   
 X_glove_train=X_glove[train_ind_2,:]
 
+
+
+
+
+
+
+
+
+
+
+
+
+#****************************
+
+
+
+
+
  
 print('Evaluate IRNN with BOVW...')
 model = Sequential()
 
-model.add(LSTM(output_dim=hidden_units,activation='relu',input_shape=X_train.shape[1:]))
+model.add(LSTM(output_dim=hidden_units,activation='relu',input_shape=X_bovw_train.shape[1:]))
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
@@ -598,13 +712,12 @@ model.compile(loss='categorical_crossentropy',
               optimizer=rmsprop,
               metrics=['accuracy'])
 
-model.fit(X_train, Y_train, nb_epoch=nb_epochs,verbose=0)
+model.fit(X_bovw_train, Y_train, nb_epoch=nb_epochs,verbose=0)
 
-scores = model.evaluate(X_test, Y_test, verbose=0)
+scores = model.evaluate(X_bovw_test, Y_test, verbose=0)
+
 #print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
-
-
 
 
 
