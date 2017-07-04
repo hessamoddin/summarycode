@@ -26,7 +26,7 @@ N=4
 
 
 dir_var= "dirs4.p"
-file_counter="file_counter4.p"
+file_counter_str="file_counter4.p"
 framefeatures='framefeatures4.h5'
 folder='Tour20-Videos4'
 """
@@ -181,7 +181,7 @@ for cat in dirs:
                      print("***")
 print("Finished raw feature extraction!")
 file_counter=list(set(file_counter))
-pickle.dump( file_counter, open("file_counter4", "wb" ) )
+pickle.dump( file_counter, open(file_counter_str, "wb" ) )
 pickle.dump( dirs, open(dir_var, "wb" ) )
 
 
