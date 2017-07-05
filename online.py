@@ -413,7 +413,7 @@ gridded_words_overall=[]  # All
 for i in xrange(num_bovw_all):
     # which frames does the current Bovw contain
     
-    current_contained_frames= [ind for ind in range(number_frames_all) if frametable[ind]['bovw_id'] == i]
+    current_contained_frames= range(i*bovw_size,i*bovw_size+bovw_size)
     
     
     if len(current_contained_frames)==bovw_size:
