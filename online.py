@@ -402,7 +402,7 @@ class gridded_bovwfeature_hdf(tb.IsDescription):
     words=tb.Int32Col(shape=(bovw_size,N*N),pos=2)
 
 
-gridded_bovwfileh = tb.open_file(gridded_bovwfeatures.h5, mode='w')
+gridded_bovwfileh = tb.open_file(gridded_bovwfeatures, mode='w')
 gridded_bovwtable = gridded_bovwfileh.create_table(gridded_bovwfileh.root, 'table', gridded_bovwfeature_hdf,"A table") 
  
     
