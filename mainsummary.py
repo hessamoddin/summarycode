@@ -545,7 +545,7 @@ num_bags_overall=0
 gridded_words_overall=[]  # All
 for i in xrange(num_bovw_all):
     # which frames does the current Bovw contain
-    current_contained_frames= [ind for ind in range(len(framefeature)) if framefeature[ind].bovw_id == i]
+    current_contained_frames= range(i*bovw_size,i*bovw_size+bovw_size
     
     
     if len(current_contained_frames)==bovw_size:
