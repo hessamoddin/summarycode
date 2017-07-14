@@ -23,8 +23,9 @@ from skimage.feature import daisy
 from sklearn.cluster import MiniBatchKMeans, KMeans
 from random import sample
 from glove import Glove
- 
+import pickle
 
+import tables as tb
 import array
 import math
 import logging
@@ -53,6 +54,11 @@ learning_rate = 1e-6
 clip_norm = 1.0
 new_shape,step,radius=(240,360),50,20 # for Daisy feaure
 embedding_size=5000
+framefeatures_str='framefeatures4a.h5'
+dir_str= "dirs4.p"
+file_counter_str="file_counter4.p"
+folder_str='Tour20-Videos4'
+
      
 """       
 Define functions
@@ -356,6 +362,27 @@ framefeature  = [ framefeature() for i in range(1000000)]
 bovwcodebook=[ bovwcodebook() for i in range(1000000)]
 videofile=[ videofile() for i in range(1000000)]
 
+
+subsampling_rate=2
+bovw_size=15
+new_shape,step,radius=(360,480),50,20 # for Daisy feaure
+N=4
+
+
+class framefeature_hdf(tb.IsDescription):
+    filename        = tb.StringCol(200, pos=1) 
+    category        = tb.StringCol(10,pos=2)        
+    rawfeature      = tb.Float32Col(4000, pos=3) 
+    bovw_id         = tb.IntCol(pos=4) 
+    frame_id        = tb.IntCol(pos=5)  
+    griddedfeature    = tb.Float32Col(shape=(N,N,4000), pos=6) 
+
+
+
+framefeature_fileh = tb.open_file(framefeatures_str, mode='w')
+framefeature_table = framefeature_fileh.create_table(framefeature_fileh.root, 'table', framefeature_hdf,"A table") 
+
+
  
 
 """ ************************
@@ -369,7 +396,7 @@ cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/Tour20-Videos4/')
+datasetpath=os.path.join(parent_dir,'Tour20',folder_str)
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -390,12 +417,14 @@ for cat in dirs:
 	    for current_file in onlyfiles:
 		# This dataset contains only mp4 video clips
 	        if current_file.endswith('.mp4'):
+                 k=0
                  print("***")
                  print(current_file)
                  # full name and path for the current video file
                  videopath=path.join(cat_path,current_file)
                  try:
                      # read the current video file
+
                      vid = imageio.get_reader(videopath,  'ffmpeg')
                      # The number of frames for this video
                      num_frames=vid._meta['nframes']
@@ -405,11 +434,11 @@ for cat in dirs:
                      # trim out the bag of videos frames in a way that each
                      #have bags number equal to multiples of bovw_size
                        # j is the frame index for the bvw processable parts of video
-                     for j in xrange(0,min(5*subsampling_rate*bovw_size*num_LSTMs,num_frames),subsampling_rate):
+                     effective_frames=min(5*subsampling_rate*bovw_size*num_LSTMs,num_frames)
+                     num_effective_frames=len(range(0,effective_frames,subsampling_rate))
+                     for j in xrange(0,effective_frames,subsampling_rate):
                          bovw_id=(i)//bovw_size  # every bovw_size block of frames
-                         print("** frame no %d **" % j)	
-                         
-                         
+                       #  print("%d frames out of %d processed ..." % (k, num_effective_frames) )
                             # Feature extraction
                             # daisy_1D,surf_descs,sift_descs 		
                          # extract dausy features: for the whole frame or grid-wise for each frame
@@ -420,10 +449,12 @@ for cat in dirs:
                          framefeature[i].bovw_id=bovw_id	#bag number in the video for this frame
                          framefeature[i].frame_id=i # frame number in the video 
                          framefeature[i].griddedfeature=current_grid_feature # gridded Daisy feature for this frame
+                         framefeature_table.append([(videopath,cat,current_frame_feature,bovw_id,i,current_grid_feature)])
                         # print(i)
                          #print(bovw_id)
                          #print(j*subsampling_rate)
                          i=i+1
+                         k=k+1
                          file_counter.append(videopath)
                          # Track record of which video does this frame belong toin a list
                          file_counter=list(set(file_counter))
@@ -435,12 +466,36 @@ for cat in dirs:
                      print(current_file)
                      print("***")
 print("Finished raw feature extraction!")
+file_counter=list(set(file_counter))
+pickle.dump( file_counter, open(file_counter_str, "wb" ) )
+pickle.dump( dirs, open(dir_str, "wb" ) )
+framefeature_fileh.close()
 
 
-# The number of all (subsampled) frames in dataset                      
-number_frames_all=i  
 
 
+
+
+
+
+
+
+
+
+###############  ONLINE    ###################
+
+file_counter = pickle.load( open(file_counter_str, "rb" ) )   
+dirs = pickle.load( open( dir_str, "rb" ) )   
+
+framefeature_fileh = tb.open_file(framefeatures_str, mode='r')
+framefeature_table=framefeature_fileh.root.table
+  
+number_frames_all=framefeature_table.nrows
+
+
+ 
+
+ 
 
 """
 Define the codebooks from traditional holistic (gridded) Daisy features for the whole
@@ -543,7 +598,7 @@ print("for i in xrange(num_bovw_all)")
 num_frames_overall=0
 num_bags_overall=0
 gridded_words_overall=[]  # All
-for i in xrange(num_bovw_all):
+for i in xrange(num_bovw_all-1):
     # which frames does the current Bovw contain
     current_contained_frames= range(i*bovw_size,i*bovw_size+bovw_size)
     
