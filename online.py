@@ -152,7 +152,7 @@ def learn_kmeans_codebook(X, codebook_size=1000, seed=None):
     logger.info("Learning codebook with %d words ..." % codebook_size)
     # Run vector-quantization
                 
-    mbk = MiniBatchKMeans(init='k-means++', n_clusters=codebook_size, batch_size=2000,
+    mbk = MiniBatchKMeans(init='k-means++', n_clusters=codebook_size, batch_size=100,
                       n_init=10, max_no_improvement=10, verbose=0)
     mbk.fit(X)
 
@@ -382,7 +382,9 @@ Define the codebooks from traditional holistic (gridded) Daisy features for the 
 training frames and then making codebooks without (with) Glove
 """
 # Split training and testing sets for frames for Bovw generation
-effective_num_frames=7500
+effective_num_frames=int(number_frames_all/2)
+effective_num_frames=2000
+ 
 train_ind_1 = sample(range(number_frames_all),effective_num_frames)
  
     
