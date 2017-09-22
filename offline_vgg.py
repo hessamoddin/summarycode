@@ -1,26 +1,22 @@
 from __future__ import division, print_function, absolute_import
 from __future__ import print_function
-from keras.applications.vgg16 import VGG16
-from sklearn.feature_extraction import image
+from keras.applications.vgg19 import VGG19
 from os.path import isfile, join
-from os import path,listdir
 from skimage.transform import resize
-from skimage.color import rgb2gray
 from skimage.util import view_as_blocks
-from skimage.feature import daisy
 import numpy as np
 import os
 import os.path
 import imageio
 import pickle
-import tables as tb
- 
 import warnings
 import cv2
+import glob
 
 
 from keras.layers import Input
 from keras import layers
+from os import path,listdir
 from keras.layers import Dense
 from keras.layers import Activation
 from keras.layers import Flatten
@@ -32,7 +28,6 @@ from keras.layers import AveragePooling2D
 from keras.layers import GlobalAveragePooling2D
 from keras.layers import BatchNormalization
 from keras.models import Model
-from keras.preprocessing import image
 import keras.backend as K
 from keras.utils import layer_utils
 from keras.utils.data_utils import get_file
@@ -40,43 +35,44 @@ from keras.applications.imagenet_utils import decode_predictions
 from keras.applications.imagenet_utils import preprocess_input
 from keras.applications.imagenet_utils import _obtain_input_shape
 from keras.engine.topology import get_source_inputs
+import tables as tb
+
 
 
 WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels.h5'
 WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
+dir_var= "dirs8.p"
+file_counter_str="file_counter8.p"
+framefeatures='framefeatures8.h5'
+folder='Tour20-Videos8'
 
+N=4
+
+class framefeature_hdf(tb.IsDescription):
+    filename        = tb.StringCol(200, pos=1) 
+    category        = tb.StringCol(10,pos=2)        
+    rawfeature      = tb.Float32Col(1000, pos=3) 
+    bovw_id         = tb.IntCol(pos=4) 
+    frame_id        = tb.IntCol(pos=5)  
+    griddedfeature    = tb.Float32Col(shape=(N*N,1000), pos=6) 
+
+
+fileh = tb.open_file(framefeatures, mode='w')
+#table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
 
 """       
 Parameters
 """
 subsampling_rate=2
 bovw_size=15
-new_shape,step,radius=(360,480),50,20 # for Daisy feaure
-N=4
+ 
 
-
-dir_var= "dirs5.p"
-file_counter_str="file_counter5.p"
-framefeatures='framefeatures5.h5'
-folder='Tour20-Videos5'
 """
 Define HDF database for frame features
 """
 
-class framefeature_hdf(tb.IsDescription):
-    filename        = tb.StringCol(200, pos=1) 
-    category        = tb.StringCol(10,pos=2)        
-    rawfeature      = tb.Float32Col(25088, pos=3) 
-    bovw_id         = tb.IntCol(pos=4) 
-    frame_id        = tb.IntCol(pos=5)  
-    griddedfeature    = tb.Float32Col(shape=(N,N,25088), pos=6) 
-
-
-fileh = tb.open_file(framefeatures, mode='w')
-table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
-
-
+ 
 """       
 Define functions
 """
@@ -331,19 +327,18 @@ def ResNet50(include_top=True, weights='imagenet',
 
  
 
-def VGG_Feature_Extractor_Fn(vid,num_frames,frame_no,N):
+def VGG_Feature_Extractor_Fn(model,vid,num_frames,frame_no,N):
 
 
     N=4
     """Extract Daisy feature for a frame of video """
     if frame_no<num_frames-1: 
-        model = VGG16(include_top=False, weights='imagenet')
         frame = vid.get_data(frame_no).astype('float32')
         frame_resized = cv2.resize(frame,(224, 224)) 
        # frame_resized = np.swapaxes(np.swapaxes(frame_resized, 1, 2), 0, 1)
         frame_resized_expand = np.expand_dims(frame_resized, axis=0)
         processed_img = preprocess_input(frame_resized_expand)
-        vgg16_holistic = np.ravel(model.predict(processed_img))
+        vgg19_holistic = np.ravel(model.predict(processed_img))
 
     
      
@@ -360,19 +355,21 @@ def VGG_Feature_Extractor_Fn(vid,num_frames,frame_no,N):
         processed_to_patch = preprocess_input(processed_to_patch)
         
         
-        vgg16_patchy=np.zeros((N,N,25088))
+        vgg19_patchy=np.zeros((N*N,1000))
+        patch_ind=0
 
 
         for i in xrange(N):
             for k in xrange(N):
                 patch=processed_to_patch[:,i*224:(i+1)*224,k*224:(k+1)*224,:]
-                vgg16_patchy[i,k,:] = np.ravel(model.predict(patch))
+                vgg19_patchy[patch_ind,:] = np.ravel(model.predict(patch))
+                patch_ind=patch_ind+1
                  
  
     else:
         print("Frame number is larger than the length of video")
   #  return (daisy_1D,surf_descs,sift_descs)
-    return vgg16_patchy,vgg16_holistic
+    return vgg19_patchy,vgg19_holistic
 
 
 
@@ -506,10 +503,42 @@ parent_dir = os.path.split(cwd)[0]
 datasetpath=join(parent_dir,'Tour20/',folder)
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
+
+
+"""
+ssh -i ubuntu@ec2-54-157-195-178.compute-1.amazonaws.com
+sudo pip install glove_python
+sudo pip install imageio
+sudo pip install scikit-image
+
+cat=dirs[0]
+cat_path=join(datasetpath,cat)
+onlyfiles = [f for f in listdir(cat_path) if isfile(join(cat_path, f))]
+current_file = onlyfiles[0]
+videopath=path.join(cat_path,current_file)
+vid = imageio.get_reader(videopath,  'ffmpeg')
+cat=dirs[0]
+cat_path=join(datasetpath,cat)
+onlyfiles = [f for f in listdir(cat_path) if isfile(join(cat_path, f))]
+current_file = onlyfiles[0]
+videopath=path.join(cat_path,current_file)
+vid = imageio.get_reader(videopath,  'ffmpeg')
+
+num_frames=vid._meta['nframes']
+bovw_id=0
+j=0
+i=0
+vgg_model = VGG19(weights='imagenet')
+vgg19_patchy,vgg19_holistic=VGG_Feature_Extractor_Fn(vgg_model,vid,num_frames,j,N) 
+"""
  
 print("Thus begins feature extraction!")
 i=0
+
 file_counter=[]
+csv_file_counter=[]
+vgg_model = VGG19(weights='imagenet')
+
 # cat: categort of actions, also the name of the folder containing the action videos
 for cat in dirs:
     print("Processing  %s Videos...." % (cat))    
@@ -518,12 +547,18 @@ for cat in dirs:
         cat_path=join(datasetpath,cat)
         onlyfiles = [f for f in listdir(cat_path) if isfile(join(cat_path, f))]
         for current_file in onlyfiles:
-		# This dataset contains only mp4 video clips
-	        if current_file.endswith('.mp4'):
+            fileh.close()
+            fileh = tb.open_file(framefeatures, mode='a')
+            table_root=fileh.root.table
+
+
+		  # This dataset contains only mp4 video clips
+            if current_file.endswith('.mp4'):
                  print("***")
                  print(current_file)
+                 filename_no_ext, ext = os.path.splitext(current_file)
                  # full name and path for the current video file
-                 videopath=path.join(cat_path,current_file)
+                 videopath=join(cat_path,current_file)
                  try:
                                       # read the current video file
                      vid = imageio.get_reader(videopath,  'ffmpeg')
@@ -544,14 +579,17 @@ for cat in dirs:
                          # extract dausy features: for the whole frame or grid-wise for each frame
                        
                          #current_grid_feature,current_frame_feature=VGG_Feature_Extractor_Fn(vid,num_frames,j,N) 
-                         vgg16_patchy,vgg16_holistic=VGG_Feature_Extractor_Fn(vid,num_frames,j,N) 
-                         table.append([(videopath,cat,vgg16_holistic,bovw_id,i,vgg16_patchy)]) #filename,category,rawfeature,bovw_id,frame_id,griddedfeature
+                         vgg19_patchy,vgg19_holistic=VGG_Feature_Extractor_Fn(vgg_model,vid,num_frames,j,N) 
+                          
+ 
+                         table_root.append([(videopath,cat,vgg19_holistic,bovw_id,i,vgg19_patchy)]) #filename,category,rawfeature,bovw_id,frame_id,griddedfeature
                          
 
                         # print(i)
                          #print(bovw_id)
                          #print(j*subsampling_rate)
                          i=i+1
+
                          file_counter.append(videopath)
                          # Track record of which video does this frame belong toin a list
                          
@@ -581,12 +619,11 @@ fileh.close()
   
  
    
-fileh = tb.open_file(framefeatures, mode='r')
+fileh = tb.open_file(framefeatures, mode='a')
 table_root=fileh.root.table
 current_row=table_root[0]
 print(current_row)
 fileh.close()
-print("File closed!")
 
 
      
