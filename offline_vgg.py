@@ -59,7 +59,7 @@ class framefeature_hdf(tb.IsDescription):
 
 
 fileh = tb.open_file(framefeatures, mode='w')
-#table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
+table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
 
 """       
 Parameters
