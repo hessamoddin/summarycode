@@ -21,6 +21,8 @@ import warnings
 import os,glob
 import os.path
 import math
+import pandas as pd
+
 
 
 
@@ -85,13 +87,13 @@ embedding_size=2000
 N=4
 
 
-filecounter_str="file_counter7.p"
-framefeatures='framefeatures7_vgg.h5'
-gridfeatures='gridfeatures7.h5'
-gridded_bovwfeatures='gridded_bovwfeatures7.h5'
-glovefeatures='glovefeatures7.h5'
-bovwfeatures='bovwfeatures7.h5'
-dir_str="dirs7.p"
+filecounter_str="file_counter8.p"
+framefeatures='framefeatures8_vgg.h5'
+gridfeatures='gridfeatures8.h5'
+gridded_bovwfeatures='gridded_bovwfeatures8.h5'
+glovefeatures='glovefeatures8.h5'
+bovwfeatures='bovwfeatures8.h5'
+dir_str="dirs8.p"
 
   
  
@@ -564,7 +566,7 @@ videofile=[ videofile() for i in range(1000000)]
   
 # The number of all (subsampled) frames in dataset                      
 
- 
+
    
 framefileh = tb.open_file(framefeatures, mode='r')
 frametable=framefileh.root.table
@@ -642,16 +644,18 @@ gridtable = gridfileh.create_table(gridfileh.root, 'table', gridfeature_hdf,"A t
 # second method of bovw calculation: GMM (fisher vector) ... to be finished later
  
 # The number of all bovws in dataset                   
+ 
+unique_filenames=pd.unique(frametable[:]['filename'])
+num_videos=len(unique_filenames)
 
-filecounter_var = pickle.load( open(filecounter_str, "rb" ) )   
+ 
 dirs = pickle.load( open( dir_str, "rb" ) )   
 
 
 num_bovw_all=frametable[number_frames_all-1]['bovw_id']+1
 # Number of all files
 
-unique_video_files=list(set(filecounter_var))
-num_videos=len(unique_video_files)
+
 
 """
 Codebook generation for representation of Bag of Visual Words
@@ -776,12 +780,7 @@ glovetable = glovefileh.root.table
 
 # dic_keys=old gridded Words
 # dic_values= position of the word in dictionary
-query=11
-target=23
-sim=np.dot(new_word_representation[dictionary[query]],new_word_representation[dictionary[target]])
-print(sim)
-
-
+ 
 cat_list=[]
 sample_ind=0
 overall_bovw_ind=[]
