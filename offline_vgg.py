@@ -13,6 +13,8 @@ import warnings
 import cv2
 import itertools
 import glob
+import pandas as pd
+
 
 
 from keras.layers import Input
@@ -48,30 +50,36 @@ file_counter_str="file_counter8.p"
 framefeatures='framefeatures8_vgg.h5'
 folder='Tour20-Videos8'
 
-N=4
-
-class framefeature_hdf(tb.IsDescription):
-    filename        = tb.StringCol(200, pos=1) 
-    category        = tb.StringCol(10,pos=2)        
-    rawfeature      = tb.Float32Col(1000, pos=3) 
-    bovw_id         = tb.IntCol(pos=4) 
-    frame_id        = tb.IntCol(pos=5)  
-    griddedfeature    = tb.Float32Col(shape=(N*N,1000), pos=6) 
-
-
-fileh = tb.open_file(framefeatures, mode='a')
-frametable=fileh.root.table
-#table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
-
-
-             
-
 
 """       
 Parameters
 """
 subsampling_rate=2
 bovw_size=15
+N=4
+
+
+
+class framefeature_hdf(tb.IsDescription):
+    filename        = tb.StringCol(200, pos=1) 
+    category        = tb.StringCol(10,pos=2)        
+    rawfeature      = tb.Float32Col(1000, pos=3) 
+    current_frame    =tb.IntCol(pos=4)  
+    bovw_id         = tb.IntCol(pos=5) 
+    frame_id        = tb.IntCol(pos=6)  
+    griddedfeature    = tb.Float32Col(shape=(N*N,1000), pos=7) 
+
+
+
+
+fileh = tb.open_file(framefeatures, mode='w')
+table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
+frametable=fileh.root.table
+
+
+
+             
+
  
 
 """
@@ -510,7 +518,6 @@ datasetpath=join(parent_dir,'Tour20/',folder)
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
-
 """
 ssh -i ubuntu@ec2-54-157-195-178.compute-1.amazonaws.com
 sudo pip install glove_python
@@ -547,12 +554,20 @@ vgg_model = VGG19(weights='imagenet')
 
 
 
+num_processed_frames=frametable.nrows
 
-unique_filenames,indices=np.unique(frametable[:]['filename'],return_index=True)
-last_pocessed_filename=unique_filenames[len(unique_filenames)-2]
-last_cat=np.unique(frametable[len(unique_filenames)-2]['category'])[0]
-last_file = os.path.normpath(last_pocessed_filename).split(os.sep)[-1]
+if num_processed_frames>0:
+    unique_filenames=pd.unique(frametable[:]['filename'])
+    last_pocessed_filename=frametable[num_processed_frames-1]['filename']
  
+    unique_cat=pd.unique(frametable[:]['category'])
+    last_cat=frametable[num_processed_frames-1]['category']
+    last_file = os.path.normpath(last_pocessed_filename).split(os.sep)[-1]
+    last_frame= frametable[num_processed_frames-1]['frame_id']
+else:
+    last_file=""
+    last_frame=0
+    last_cat=""    
 
  
                      
@@ -560,14 +575,19 @@ last_file = os.path.normpath(last_pocessed_filename).split(os.sep)[-1]
 
 
 
+
 # cat: categort of actions, also the name of the folder containing the action videos
-for cat in itertools.islice(dirs , dirs.index(last_cat), len(dirs)):
+last_cat_ind=dirs.index(last_cat) if last_cat in dirs else 0
+for cat in itertools.islice(dirs , last_cat_ind, len(dirs)):
     print("Processing  %s Videos...." % (cat))    
     print(cat)
     if "." not in cat:
         cat_path=join(datasetpath,cat)
         onlyfiles = [f for f in listdir(cat_path) if isfile(join(cat_path, f))]
-        for current_file in itertools.islice(onlyfiles , onlyfiles.index(last_file), len(onlyfiles)):
+        last_file_ind=onlyfiles.index(last_file) if last_file in onlyfiles else 0
+                    
+        for current_file in itertools.islice(onlyfiles ,last_file_ind,  len(onlyfiles)):
+            print(current_file)
             fileh.close()
             fileh = tb.open_file(framefeatures, mode='a')
             table_root=fileh.root.table
@@ -577,6 +597,7 @@ for cat in itertools.islice(dirs , dirs.index(last_cat), len(dirs)):
             if current_file.endswith('.mp4'):
                  print("***")
                  print(current_file)
+                 k=0
                  filename_no_ext, ext = os.path.splitext(current_file)
                  # full name and path for the current video file
                  videopath=join(cat_path,current_file)
@@ -591,19 +612,20 @@ for cat in itertools.islice(dirs , dirs.index(last_cat), len(dirs)):
                      #have bags number equal to multiples of bovw_size
                        # j is the frame index for the bvw processable parts of video
                        # 
-                     for j in xrange(0,min(5*subsampling_rate*bovw_size*8,num_frames),subsampling_rate):
+                     for j in xrange(max(0,last_frame),min(5*subsampling_rate*bovw_size*8,num_frames),subsampling_rate):
+                         print(j)
+                         last_frame=0
                          bovw_id=(i)//bovw_size  # every bovw_size block of frames
                           
-                         print(j)
                             # Feature extraction
                             # daisy_1D,surf_descs,sift_descs 		
                          # extract dausy features: for the whole frame or grid-wise for each frame
                        
                          #current_grid_feature,current_frame_feature=VGG_Feature_Extractor_Fn(vid,num_frames,j,N) 
                          vgg19_patchy,vgg19_holistic=VGG_Feature_Extractor_Fn(vgg_model,vid,num_frames,j,N) 
-                          
+                         k=k+1 
  
-                         table_root.append([(videopath,cat,vgg19_holistic,bovw_id,i,vgg19_patchy)]) #filename,category,rawfeature,bovw_id,frame_id,griddedfeature
+                         table_root.append([(videopath,cat,vgg19_holistic,j,bovw_id,i,vgg19_patchy)]) #filename,category,rawfeature,bovw_id,frame_id,griddedfeature
                          
 
                         # print(i)
@@ -612,6 +634,9 @@ for cat in itertools.islice(dirs , dirs.index(last_cat), len(dirs)):
                          i=i+1
 
                          file_counter.append(videopath)
+                         file_counter=list(set(file_counter))
+                         pickle.dump( file_counter, open(file_counter_str, "wb" ) )
+
                          # Track record of which video does this frame belong toin a list
                          
                          # update feature objects for each video
@@ -622,9 +647,6 @@ for cat in itertools.islice(dirs , dirs.index(last_cat), len(dirs)):
                      print(current_file)
                      print("***")
 print("Finished raw feature extraction!")
-file_counter=list(set(file_counter))
-pickle.dump( file_counter, open(file_counter_str, "wb" ) )
-pickle.dump( dirs, open(dir_var, "wb" ) )
 
  
 
