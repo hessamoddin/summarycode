@@ -11,6 +11,7 @@ import imageio
 import pickle
 import warnings
 import cv2
+import itertools
 import glob
 
 
@@ -44,7 +45,7 @@ WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases
 
 dir_var= "dirs8.p"
 file_counter_str="file_counter8.p"
-framefeatures='framefeatures8.h5'
+framefeatures='framefeatures8_vgg.h5'
 folder='Tour20-Videos8'
 
 N=4
@@ -58,8 +59,13 @@ class framefeature_hdf(tb.IsDescription):
     griddedfeature    = tb.Float32Col(shape=(N*N,1000), pos=6) 
 
 
-fileh = tb.open_file(framefeatures, mode='w')
-table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
+fileh = tb.open_file(framefeatures, mode='a')
+frametable=fileh.root.table
+#table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
+
+
+             
+
 
 """       
 Parameters
@@ -539,14 +545,29 @@ file_counter=[]
 csv_file_counter=[]
 vgg_model = VGG19(weights='imagenet')
 
+
+
+
+unique_filenames,indices=np.unique(frametable[:]['filename'],return_index=True)
+last_pocessed_filename=unique_filenames[len(unique_filenames)-2]
+last_cat=np.unique(frametable[len(unique_filenames)-2]['category'])[0]
+last_file = os.path.normpath(last_pocessed_filename).split(os.sep)[-1]
+ 
+
+ 
+                     
+
+
+
+
 # cat: categort of actions, also the name of the folder containing the action videos
-for cat in dirs:
+for cat in itertools.islice(dirs , dirs.index(last_cat), len(dirs)):
     print("Processing  %s Videos...." % (cat))    
     print(cat)
     if "." not in cat:
         cat_path=join(datasetpath,cat)
         onlyfiles = [f for f in listdir(cat_path) if isfile(join(cat_path, f))]
-        for current_file in onlyfiles:
+        for current_file in itertools.islice(onlyfiles , onlyfiles.index(last_file), len(onlyfiles)):
             fileh.close()
             fileh = tb.open_file(framefeatures, mode='a')
             table_root=fileh.root.table
@@ -605,9 +626,7 @@ file_counter=list(set(file_counter))
 pickle.dump( file_counter, open(file_counter_str, "wb" ) )
 pickle.dump( dirs, open(dir_var, "wb" ) )
 
-
  
-  
 
  
 
