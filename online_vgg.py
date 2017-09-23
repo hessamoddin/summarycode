@@ -794,7 +794,7 @@ Video file level containing BOVW
 
 print("Video file level containing BOVW")
 for i in xrange(num_videos):
-     videofile[i].filename=unique_video_files[i]
+     videofile[i].filename=unique_filenames[i]
      current_contained_bovws= [ind for ind in range(gridded_bovwtable.nrows) if gridded_bovwtable[ind]['filename'] == unique_video_files[i]]
      videofile[i].contained_bovws=current_contained_bovws
      videofile[i].category= gridded_bovwtable[current_contained_bovws[len(current_contained_bovws)//2]]['category']
