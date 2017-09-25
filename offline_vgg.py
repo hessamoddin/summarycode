@@ -13,6 +13,8 @@ import warnings
 import cv2
 import itertools
 import glob
+from shutil import copyfile
+
 import pandas as pd
 
 
@@ -71,6 +73,7 @@ class framefeature_hdf(tb.IsDescription):
 
 
 if os.path.exists(framefeatures):
+    copyfile(framefeatures, 'copy_of_vgg.h5')
     print("Resuming the efforts to extract the remaining features...")
     fileh = tb.open_file(framefeatures, mode='a')
 
