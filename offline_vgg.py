@@ -70,10 +70,17 @@ class framefeature_hdf(tb.IsDescription):
     griddedfeature    = tb.Float32Col(shape=(N*N,1000), pos=7) 
 
 
+if os.path.exists(framefeatures):
+    print("Resuming the efforts to extract the remaining features...")
+    fileh = tb.open_file(framefeatures, mode='a')
 
 
-fileh = tb.open_file(framefeatures, mode='w')
-table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
+else:
+    print("Starting a great journey to extract all features...")
+    fileh = tb.open_file(framefeatures, mode='w')
+    table = fileh.create_table(fileh.root, 'table', framefeature_hdf,"A table") 
+
+
 frametable=fileh.root.table
 
 
@@ -563,7 +570,7 @@ if num_processed_frames>0:
     unique_cat=pd.unique(frametable[:]['category'])
     last_cat=frametable[num_processed_frames-1]['category']
     last_file = os.path.normpath(last_pocessed_filename).split(os.sep)[-1]
-    last_frame= frametable[num_processed_frames-1]['frame_id']
+    last_frame= frametable[num_processed_frames-1]['current_frame']+1
 else:
     last_file=""
     last_frame=0
@@ -636,6 +643,7 @@ for cat in itertools.islice(dirs , last_cat_ind, len(dirs)):
                          file_counter.append(videopath)
                          file_counter=list(set(file_counter))
                          pickle.dump( file_counter, open(file_counter_str, "wb" ) )
+                         table_root.flush()
 
                          # Track record of which video does this frame belong toin a list
                          
