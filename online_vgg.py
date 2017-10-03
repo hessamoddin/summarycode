@@ -570,8 +570,41 @@ videofile=[ videofile() for i in range(1000000)]
    
 framefileh = tb.open_file(framefeatures, mode='r')
 frametable=framefileh.root.table
-  
 number_frames_all=frametable.nrows
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
 
 
  
@@ -645,15 +678,21 @@ gridtable = gridfileh.create_table(gridfileh.root, 'table', gridfeature_hdf,"A t
  
 # The number of all bovws in dataset                   
  
-unique_filenames=pd.unique(frametable[:]['filename'])
+unique_filenames,indices=np.unique(frametable[:]['filename'],return_index=True)
 num_videos=len(unique_filenames)
+unique_filenames=unique_filenames[indices.argsort()] 
+indices=np.sort(indices)
+ 
+dirs = pd.unique(frametable[:]['category'])
+ 
+
+size_bovw_All=np.divide([x - indices[i - 1] for i, x in enumerate(indices)][1:],bovw_size)
+bovw_size_each_file=size_bovw_All*bovw_size
+
+num_bovw_all=np.sum(size_bovw_All)
 
  
-dirs = pickle.load( open( dir_str, "rb" ) )   
-
-
-num_bovw_all=frametable[number_frames_all-1]['bovw_id']+1
-# Number of all files
+ # Number of all files
 
 
 
@@ -692,11 +731,13 @@ gridded_bovwtable = gridded_bovwfileh.create_table(gridded_bovwfileh.root, 'tabl
 num_frames_overall=0
 num_bags_overall=0
 gridded_words_overall=[]  # All
-for i in xrange(num_bovw_all-1):
+for ind_before, ind_after in zip(indices, indices[1:]):
     # which frames does the current Bovw contain
-    print(i)
+    print(ind_before)
+    print(ind_after)
     
-    current_contained_frames= range(i*bovw_size,i*bovw_size+bovw_size)    
+    
+    current_contained_frames= range(ind_before,ind_after,bovw_size)
     
     if len(current_contained_frames)==bovw_size:
          num_bags_overall=num_bags_overall+1
@@ -744,9 +785,9 @@ for i in xrange(num_bovw_all-1):
              gridded_words_intrabag.append(np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),))) # each row contains words for each containing frame
              gridded_words_overall.append(np.reshape(gridded_words_intraframe, (np.product(gridded_words_intraframe.shape),)))
         
-    current_bovwg_ridded_code=calc_bovw(np.asarray(training_gridded_intrabag), kmeans_codebook_gridded) #saves gridded Bovw for the whole bag     
+    current_bovwg_gridded_code=calc_bovw(np.asarray(training_gridded_intrabag), kmeans_codebook_gridded) #saves gridded Bovw for the whole bag     
     current_bovw_words=np.asarray(gridded_words_intrabag) # all words across all frames wihin the bag i           
-    gridded_bovwtable.append([(current_bovwg_ridded_code,current_bovw_words,current_category,current_filename)])
+    gridded_bovwtable.append([(current_bovwg_gridded_code,current_bovw_words,current_category,current_filename)])
     
 print(len(gridded_words_overall))
 new_word_representation,dictionary=embedding_func(gridded_words_overall,embedding_size)
@@ -804,7 +845,7 @@ for i in xrange(num_videos):
          chunks_bovws_ind=chunks_bovws_ind[0:len(chunks_bovws_ind)-1]
      timestep_ind=0
      for current_bovw_chunk_ind in chunks_bovws_ind:
-         cat_list.append(dirs.index(videofile[i].category))
+         cat_list.append(dirs.tolist().index(videofile[i].category))
          for timestep in xrange(num_LSTMs):
              overall_bovw_ind.append(current_bovw_chunk_ind[timestep])
              current_glove_words=glovetable[current_bovw_chunk_ind[timestep]]['glove_words']
