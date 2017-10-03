@@ -737,8 +737,14 @@ for ind_before, ind_after in zip(indices, indices[1:]):
     print(ind_after)
     
     
-    current_contained_frames= range(ind_before,ind_after,bovw_size)
+    current_bovw_indices= range(ind_before,ind_after,bovw_size)
     
+    for ind_before_2, ind_after_2 in zip(current_bovw_indices, current_bovw_indices[1:]):
+            print(ind_before_2)
+            print(ind_after_2)
+            current_contained_frames=range(ind_before_2,ind_after_2)
+            
+        
     if len(current_contained_frames)==bovw_size:
          num_bags_overall=num_bags_overall+1
          num_frames_overall=num_frames_overall+len(current_contained_frames)
