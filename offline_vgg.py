@@ -48,10 +48,19 @@ WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/downlo
 WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 dir_var= "dirs8.p"
-file_counter_str="file_counter8.p"
-framefeatures='framefeatures8_vgg.h5'
 folder='Tour20-Videos8'
 
+filecounter_str="file_counterUCF.p"
+framefeatures='framefeaturesUCF_vgg.h5'
+gridfeatures='gridfeaturesUCF.h5'
+gridded_bovwfeatures='gridded_bovwfeaturesUCF.h5'
+glovefeatures='glovefeaturesUCF.h5'
+glovefeatures_test='glovefeaturesUCF_test.h5'
+
+
+bovwfeatures='bovwfeaturesUCF.h5'
+dir_str="dirsUCF.p"
+bovwfeatures="bovwfeatureUCF.h5"
 
 """       
 Parameters
@@ -524,7 +533,7 @@ cwd = os.getcwd()
 # The folder inside which the video files are located in separate folders
 parent_dir = os.path.split(cwd)[0] 
 # Find the data folders
-datasetpath=join(parent_dir,'Tour20/',folder)
+datasetpath=join(parent_dir,'UCF-101')
 # Dir the folders; each representing a category of action
 dirs = os.listdir( datasetpath )
 
@@ -604,7 +613,7 @@ for cat in itertools.islice(dirs , last_cat_ind, len(dirs)):
 
 
 		  # This dataset contains only mp4 video clips
-            if current_file.endswith('.mp4'):
+            if current_file.endswith('.avi'):
                  print("***")
                  print(current_file)
                  k=0
@@ -645,7 +654,7 @@ for cat in itertools.islice(dirs , last_cat_ind, len(dirs)):
 
                          file_counter.append(videopath)
                          file_counter=list(set(file_counter))
-                         pickle.dump( file_counter, open(file_counter_str, "wb" ) )
+                         pickle.dump( file_counter, open(filecounter_str, "wb" ) )
                          table_root.flush()
 
                          # Track record of which video does this frame belong toin a list
