@@ -88,13 +88,13 @@ for vgg_feature_file in vgg_feature_file_list:
 """       
 Parameters
 """
-bovw_size=40
-num_LSTMs=6
-train_frac=0.80
+bovw_size=50
+num_LSTMs=3
+train_frac=0.90
 longest_allowed_frames=500
 batch_size = 1
 nb_epochs = 100
-hidden_units = 8
+hidden_units = 128
 learning_rate = 1e-6
 clip_norm = 1.0
 embedding_size=200
@@ -677,7 +677,6 @@ file_indices_appended=np.append(file_indices,frametable.nrows)
 
 
 
-dirs = pd.unique(frametable[:]['category'])
 unique_categories,cat_indices=np.unique(frametable[:]['category'],return_index=True)
 num_cats=len(unique_categories)
 unique_categories=unique_categories[cat_indices.argsort()] 
@@ -875,6 +874,16 @@ for cat in test_dict:
     categorized_frames_dict[cat]=categorized_frames
  
     
+ 
+unique_categories,cat_indices=np.unique(glovetable_train[:]['category'],return_index=True)
+num_cats=len(unique_categories)
+unique_categories=unique_categories[cat_indices.argsort()] 
+cat_indices=np.sort(cat_indices)
+cat_indices_appended=np.append(cat_indices,frametable.nrows)
+
+
+cat_intervals= zip(cat_indices_appended, cat_indices_appended[1:]-1)
+file_intervals=zip(file_indices_appended,file_indices_appended[1:]-1) 
  
  
 glove_train=np.zeros((0,1000))
@@ -1215,15 +1224,3 @@ scores = model.evaluate(X_glove_test, y_test, verbose=0)
 
 #print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
-
-
-
-
-
-
-
-
-
-
- 
- 
