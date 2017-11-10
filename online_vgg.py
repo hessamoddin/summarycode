@@ -1,23 +1,38 @@
 from __future__ import print_function
 from __future__ import division, print_function, absolute_import
 
+from nltk.cluster.kmeans import KMeansClusterer
+
 from keras.models import Sequential
 from keras.layers import Dense, Activation,LSTM
 from keras.optimizers import RMSprop
+from keras.preprocessing import sequence
+from keras.models import Sequential
+from keras.layers import Dense, Embedding
+from keras.layers import LSTM
+from keras.datasets import imdb
+
 from keras.utils import np_utils
 from sklearn.model_selection import train_test_split
 from scipy.stats import multivariate_normal
 from sklearn.cluster import MiniBatchKMeans, KMeans
 from random import sample
-import random
+from sklearn.metrics.pairwise import cosine_similarity
 from glove import Glove
+from sklearn import preprocessing
 from sklearn.cross_validation import train_test_split
+from glove import Glove
+from glove import Corpus
+
+from keras.preprocessing import sequence
+
+from sklearn import svm
+
 
 import array
 import logging
 import sklearn.mixture.gmm as gm
 import numpy as np
-import pickle
 import scipy.sparse as sp
 import tables as tb
 import warnings
@@ -32,8 +47,6 @@ from numpy.linalg import norm
 
 from keras.layers import Input
 from keras import layers
-from keras.layers import Dense
-from keras.layers import Activation
 from keras.layers import Flatten
 from keras.layers import Conv2D
 from keras.layers import MaxPooling2D
@@ -75,17 +88,16 @@ for vgg_feature_file in vgg_feature_file_list:
 """       
 Parameters
 """
-Num_samples_per_video=5
-bovw_size=20
-num_LSTMs=8
-train_frac=0.5
+bovw_size=40
+num_LSTMs=6
+train_frac=0.80
 longest_allowed_frames=500
 batch_size = 1
-nb_epochs = 200
-hidden_units = 6
+nb_epochs = 100
+hidden_units = 8
 learning_rate = 1e-6
 clip_norm = 1.0
-embedding_size=100
+embedding_size=200
 N=4
 
 
@@ -93,8 +105,16 @@ filecounter_str="file_counter8.p"
 framefeatures='framefeatures8_vgg.h5'
 gridfeatures='gridfeatures8.h5'
 gridded_bovwfeatures='gridded_bovwfeatures8.h5'
-glovefeatures='glovefeatures8.h5'
+glovefeatures_train='glovefeatures8_train.h5'
 glovefeatures_test='glovefeatures8_test.h5'
+bovwfeatures_train='bovwfeatures8_train.h5'
+bovwfeatures_test='bovwfeatures8_test.h5'
+filefeatures_train='filefeatures8_train.h5'
+filefeatures_test='filefeatures8_test.h5'
+
+catfeatures_train='catfeatures8_train.h5'
+catfeatures_test='catfeatures8_test.h5'
+
 
 bovwfeatures='bovwfeatures8.h5'
 dir_str="dirs8.p"
@@ -366,6 +386,40 @@ class videofile(object):
 Define functions
 """
 
+
+def word_embedding(sentences,embedding_size,windows_len):
+    """
+    Verify that the square error diminishes with fitting
+    """
+
+     
+
+    corpus_model = Corpus()
+
+    corpus_model.fit(sentences,window=windows_len)
+
+    # Check that the performance is poor without fitting
+    glove_model = Glove(no_components=embedding_size, learning_rate=0.05)
+    glove_model.fit(corpus_model.matrix,
+                    epochs=0,
+                    no_threads=2)
+
+    log_cooc_mat = corpus_model.matrix.copy()
+    log_cooc_mat.data = np.log(log_cooc_mat.data)
+    log_cooc_mat = np.asarray(log_cooc_mat.todense())
+    
+    
+    
+    corpus_dict=corpus_model.dictionary
+    corpus_inverse_dict=dict(map(reversed, corpus_dict.items()))
+
+        
+    
+
+    return glove_model,corpus_dict,corpus_inverse_dict
+ 
+
+
 def embedding_func(gridded_words_overall,embedding_size):
     
     """***************
@@ -374,7 +428,6 @@ def embedding_func(gridded_words_overall,embedding_size):
      
     
     glove_bins=np.asarray(gridded_words_overall)
-    print(glove_bins)
     glove_shape=glove_bins.shape
     glove_weights=np.ones((glove_shape))
     #bovw_shape=(3,5)
@@ -433,15 +486,13 @@ def embedding_func(gridded_words_overall,embedding_size):
                              shape=(len(dictionary),
                                     len(dictionary)),
                              dtype=np.double).tocsr().tocoo()      
-    print(dictionary)     
+        
            
  
     
                   
     xarr=x.toarray()                         
     xarr/=np.amax(xarr)
-    print("coocurance matrix")
-    print(xarr)
     xsparse=sp.coo_matrix(xarr)   
     
     glove_model = Glove(no_components=embedding_size, learning_rate=0.05)
@@ -464,7 +515,7 @@ def learn_kmeans_codebook(X, codebook_size=1000, seed=None):
     logger.info("Learning codebook with %d words ..." % codebook_size)
     # Run vector-quantization
                 
-    mbk = MiniBatchKMeans(init='k-means++', n_clusters=codebook_size, batch_size=3000,
+    mbk = MiniBatchKMeans(init='k-means++', n_clusters=codebook_size, batch_size=30,
                       n_init=10, max_no_improvement=10, verbose=0)
     mbk.fit(X)
 
@@ -563,6 +614,17 @@ def fisher_vector(samples, means, covs, w):
     fv = np.concatenate([np.concatenate(a), np.concatenate(b), np.concatenate(c)])
     fv = normalize(fv)
     return fv
+    
+    
+
+
+
+
+
+
+
+
+
 
 
 videofile=[ videofile() for i in range(1000000)]
@@ -579,23 +641,31 @@ num_cols=frametable[0]['griddedfeature'].shape[1]
 
 
 class glovefeature_hdf(tb.IsDescription):
-    category        = tb.StringCol(10,pos=1) 
+    category        = tb.StringCol(30,pos=1) 
     filename        = tb.StringCol(200,pos=2) 
     bovw_id         = tb.Int32Col(pos=3) 
     word            = tb.Int32Col(pos=4) 
     grid_word            = tb.Int32Col(num_rows,pos=5) 
-                            
+    frame_feature =tb.Float32Col(1000,pos=6)
+    
+    
+
+        
+
+ 
                       
 
+ 
 
-gloveh = tb.open_file(glovefeatures, mode='w')
+gloveh_train = tb.open_file(glovefeatures_train, mode='w')
+glovetable_train = gloveh_train.create_table(gloveh_train.root, 'table', glovefeature_hdf,"A table") 
+
 gloveh_test = tb.open_file(glovefeatures_test, mode='w')
+glovetable_test = gloveh_test.create_table(gloveh_test.root, 'table', glovefeature_hdf,"A table") 
+
+ 
 
 
-glovetable = gloveh.create_table(gloveh.root, 'table', glovefeature_hdf,"A table") 
-glovetable_test = gloveh.create_table(gloveh_test.root, 'table', glovefeature_hdf,"A table") 
-
-   
 
 unique_filenames,file_indices=np.unique(frametable[:]['filename'],return_index=True)
 num_videos=len(unique_filenames)
@@ -690,6 +760,7 @@ kmeans_codebook=learn_kmeans_codebook(frametable[train_ind_kmeans]['rawfeature']
 
 
 print("Starting converting raw features to visual words ... ")
+print("For training")
 gridded_words_overall=[]  # All
 bovw_id=-1
 categorized_frames_dict={}
@@ -710,12 +781,12 @@ for cat in train_dict:
 
         for bovw_ind_before, bovw_ind_after in zip(current_bovw_indices, current_bovw_indices[1:]):
              bovw_id=bovw_id+1
-             glovetable.flush()
+             glovetable_train.flush()
 
              current_contained_frames=range(bovw_ind_before,bovw_ind_after)
             
         
-             num_frames_overall=num_frames_overall+len(current_contained_frames)
+            # num_frames_overall=num_frames_overall+len(current_contained_frames)
          
             # take the middle frame of the bag of visual words as its examplar
              middle_frame=current_contained_frames[len(current_contained_frames)//2]
@@ -734,6 +805,8 @@ for cat in train_dict:
                  
                  current_gridded_frame_feature=frametable[j]['griddedfeature']
                  grid_word=[]
+                 
+                 
                  for ind in xrange(num_rows):
                      current_grid_feature=current_gridded_frame_feature[ind,:]
                      current_grid_feature=current_grid_feature.reshape(1,-1)
@@ -742,15 +815,15 @@ for cat in train_dict:
                      # Map the gridded daisy feature to a word
                      
          
-                 glovetable.append([(current_category,current_filename,np.int32(bovw_id),np.int32(current_frame_word),np.array(grid_word))])
+                 glovetable_train.append([(current_category,current_filename,np.int32(bovw_id),np.int32(current_frame_word),np.array(grid_word),current_frame_feature)])
     categorized_frames_dict[cat]=categorized_frames
-    
-    
+
+
+print("For testing")
+
 gridded_words_overall=[]  # All
-bovw_id=-1
 categorized_frames_dict={}
 categorized_frames_id=[]
-num_frames_overall=0
 frame_id=0
 for cat in test_dict:
     categorized_frames=[]
@@ -771,7 +844,7 @@ for cat in test_dict:
              current_contained_frames=range(bovw_ind_before,bovw_ind_after)
             
         
-             num_frames_overall=num_frames_overall+len(current_contained_frames)
+            # num_frames_overall=num_frames_overall+len(current_contained_frames)
          
             # take the middle frame of the bag of visual words as its examplar
              middle_frame=current_contained_frames[len(current_contained_frames)//2]
@@ -798,367 +871,359 @@ for cat in test_dict:
                      # Map the gridded daisy feature to a word
                      
          
-                 glovetable_test.append([(current_category,current_filename,np.int32(bovw_id),np.int32(current_frame_word),np.array(grid_word))])
-                 
-    categorized_frames_dict[cat]=categorized_frames    
+                 glovetable_test.append([(current_category,current_filename,np.int32(bovw_id),np.int32(current_frame_word),np.array(grid_word),current_frame_feature)])
+    categorized_frames_dict[cat]=categorized_frames
+ 
+    
+ 
+ 
+glove_train=np.zeros((0,1000))
+glove_train_temp=np.zeros((1,1000))
 
-print("Start visual words embedding ..")  
-new_gridword_representation,grid_dictionary=embedding_func(glovetable[:]['grid_word'],embedding_size)
-new_gridword_representation_test,grid_dictionary_test=embedding_func(glovetable_test[:]['grid_word'],embedding_size)
+i=0
+j=0
+for ind1,ind2 in file_intervals:
+    bovw_ind=range(ind1,ind2,bovw_size)
+    for bovw1,bovw2 in zip(bovw_ind,bovw_ind[1:]):
+        current_words=np.ravel(glovetable_train[bovw1:bovw2]['word'])
+        glove_train_temp[0,0:min(len(current_words),1000)]=current_words
+        glove_train=np.vstack((glove_train,glove_train_temp))
+        glove_train_temp=np.zeros((1,1000))
+        i=i+1
 
 
-max_bovw=np.max(glovetable[:]['grid_word']  )
-max_bovw_test=np.max(glovetable_test[:]['grid_word']  )
 
-bovw_bins=(max_bovw+1)
-bovw_bins_test=(max_bovw_test+1)
+print("Start frame level visual words embedding ..")  
 
-hist_bovw_per_cat=np.zeros((num_cats,bovw_bins))
-hist_bovw_per_cat_test=np.zeros((num_cats,bovw_bins_test))
+ 
+ 
+embedded_word_train=[]
+embedded_gridword_train=[]
+for cat in train_dict:
+    selectd_frame=glovetable_train[:]['category']==cat
+    embedded_word_train.append(list(glovetable_train[selectd_frame]['word']))
+    #embedded_gridword_train.append(list(np.ravel(glovetable_train[selectd_frame]['grid_word'])))
+ 
+ 
 
-hist_glove_per_cat_test=np.zeros((num_cats,embedding_size))
-hist_glove_per_cat=np.zeros((num_cats,embedding_size))
+
+#new_gridword_representation_frame,grid_dictionary=embedding_func( glovetable_train[:]['grid_word'],embedding_size)
 
 
+#new_gridword_representation_frame,grid_dictionary=embedding_func( embedded_word_train,embedding_size)
+
+    
+sentences=[['a', 'b', 'c','a'],['b','c'],['l','d'],['l','d'],['l','d']]
+bovw_windows_len=100
+embedding_size=100
+glove_model,corpus_dict,corpus_inverse_dict=word_embedding(sentences,embedding_size,bovw_windows_len)
+glove_model,corpus_dict,corpus_inverse_dict=word_embedding(embedded_word_train,embedding_size,bovw_windows_len)
+glove_model,corpus_dict,corpus_inverse_dict=word_embedding(embedded_word_train,embedding_size,bovw_windows_len)
+
+
+print("Calculated corpus dictionary, and glove coocurance")
+glove_vec=glove_model.word_vectors
+
+
+
+
+
+
+
+
+
+#new_gridword_representation_frame=preprocessing.scale(new_gridword_representation_frame)
 
 
   
-print("Construct the profile for each category ..")  
+  
+  
+print("Calculate category-based histograms")
 
 
-
-
-
-# Construct BovW histogram  
+max_bovw=np.max(glovetable_train[:]['word']  )
+ 
+bovw_bins=(max_bovw+1)
 
 
 i=0
 cat_list=[]
+hist_bovw_per_cat=[]
+hist_glove_per_cat=[]
+hist_raw_per_cat=[]
 for cat in train_dict:
     cat_list.append(cat)
-    cat_frames=np.where(glovetable[:]['category']==cat)[0]
-    words_within_bag=np.ravel(glovetable[cat_frames]['grid_word'])
+    cat_frames=np.where(glovetable_train[:]['category']==cat)[0]
+    words_within_bag=np.ravel(glovetable_train[cat_frames]['word'])
         
-    sum_embedded_gridded=[]
+    sum_embedded=[]
     for j in words_within_bag:
-        sum_embedded_gridded.append(new_gridword_representation[grid_dictionary[j]])
+        try:
+            sum_embedded.append(glove_model.word_vectors[corpus_dict[j]])
+        except:
+            pass
 
-    embedded_gridded=np.mean(np.array(sum_embedded_gridded),axis=0)    
+    embedded_gridded=np.mean(np.array(sum_embedded),axis=0)    
+    current_hist_bovw=np.histogram(words_within_bag,bins=range(bovw_bins+1),density=True)[0]
+
+    hist_bovw_per_cat.append(current_hist_bovw.tolist())
+    hist_glove_per_cat.append(embedded_gridded.reshape(1,-1))
+    hist_raw_per_cat.append(np.ravel(glovetable_train[cat_frames]['frame_feature']))
+      
+  
+
+unique_test_filenames,test_file_indices=np.unique(glovetable_test[:]['filename'],return_index=True)
+unique_test_filenames=unique_test_filenames[test_file_indices.argsort()] 
+test_file_indices=np.sort(test_file_indices)
+test_file_indices=np.append(test_file_indices,glovetable_test.nrows)
+file_intervals= zip(test_file_indices, test_file_indices[1:])
+
+
+num_test_files=len(unique_test_filenames)
+test_files_glove=[]
+for i in xrange(num_test_files):
+    current_file_frames=range(file_intervals[i][0],file_intervals[i][1])
+    query_word=glovetable_test[current_file_frames]['word']
+    glove_file=[]
+    for w in query_word:
+        
+        try:
+            glove_file.append(glove_model.word_vectors[corpus_dict[w]].reshape(1,-1))
+
+        except:
+            pass
+    current_file_glove=np.mean(np.squeeze(np.array(glove_file)),axis=0).reshape(1,-1)
+    test_files_glove.append(current_file_glove)
     
 
+top_1_cat_overall=[]
+true_cat_overall=[]
+correct_count=0
+for i in xrange(num_test_files):
+    
+    a=test_files_glove[i]
+    b=np.squeeze(np.array(hist_glove_per_cat))
+    cat_sim=[]
+    for j in xrange(b.shape[0]):
+        sim = (np.dot(a, b[j])/ np.linalg.norm(b[j]) / np.linalg.norm(a))[0]
+        cat_sim.append(sim)
+    cat_sorted=np.argsort(-np.array(cat_sim))
+    top_1_cat=cat_list[cat_sorted[0]]
+    true_cat=glovetable_test[int((file_intervals[i][0]+file_intervals[i][1])/2)]['category']    
+    top_1_cat_overall.append(top_1_cat)
+    true_cat_overall.append(true_cat)
+    if(top_1_cat==true_cat):
+        correct_count=correct_count+1
+        
 
-    current_hist_bovw=np.histogram(words_within_bag,bins=bovw_bins,density=True)[0]
+glove_acc= correct_count/ float(num_test_files)   
+        
+print("Glove precision: % "+str(100*glove_acc))
+
+top_1_cat_overall=[]
+true_cat_overall=[]
+correct_count=0
+
+
+for i in xrange(num_test_files):
+    current_file_frames=range(file_intervals[i][0],file_intervals[i][1])
+    query_word=glovetable_test[current_file_frames]['word']
+    file_hist_bovw=np.histogram(query_word,bins=range(bovw_bins+1),density=True)[0].reshape(1,-1)
+    cat_sim=[]
+    for j in xrange(len(hist_bovw_per_cat)):
+            curent_cat_hist=np.array(hist_bovw_per_cat[j]).reshape(1,-1)
+            cat_score=hist_intersection(file_hist_bovw,curent_cat_hist)            
+            cat_sim.append(cat_score)
+    
+    cat_sorted=np.argsort(np.array(cat_sim))
+    top_1_cat=cat_list[cat_sorted[0]]
+    if(top_1_cat==true_cat):
+         correct_count=correct_count+1
+
+    
+bovwhist_acc= correct_count/ float(num_test_files)   
+        
+print("Histogram of BoVw precision: % "+str(100*bovwhist_acc))
+
+
+
+
+         
+        
+        
+    
+"""     
+
+
+frame_id_query=111
+query_word=glovetable_test[frame_id_query]['word']
+query_glove=glove_model.word_vectors[corpus_dict[query_word]]
+
+
+frame_id_target=11
+target_word=glovetable_test[frame_id_target]['word']
+target_glove=glove_model.word_vectors[corpus_dict[target_word]]
+
+a=query_glove
+b=target_glove
+dst = (np.dot(a, b)/ np.linalg.norm(b) / np.linalg.norm(a))
+print(dst)
+
+
+
+
+word_ids = np.argsort(-dst)
+for w in word_ids[0:10]:
+    print(corpus_inverse_dict[w])    
  
+ 
+ 
+ 
+"""
+
+print("Converting to Bag of Embedded Visual Words")
+
+unique_train_filenames,train_file_indices=np.unique(glovetable_train[:]['filename'],return_index=True)
+unique_train_filenames=unique_train_filenames[train_file_indices.argsort()] 
+train_file_indices=np.sort(train_file_indices)
+train_file_indices=np.append(train_file_indices,glovetable_train.nrows)
+file_intervals_train= zip(train_file_indices, train_file_indices[1:])
+file_intervals_test= zip(test_file_indices, test_file_indices[1:])
+
+
+
+X_file_words_train=[]
+X_file_glove_train=[]
+X_bag_words_train=[]
+X_bag_glove_train=[]
+y_bag_train=[]
+
+all_words_train=glovetable_train[:]['word']
+all_glove_train=[]
+for w in all_words_train:
+    try:
+        all_glove_train.append(glove_model.word_vectors[corpus_dict[w]].reshape(1,-1))
+    except:
+        pass
     
-    current_hist_bovw_list=current_hist_bovw.tolist()
-    hist_bovw_per_cat[i,:]=current_hist_bovw
-    hist_glove_per_cat[i,:]=embedded_gridded
-    i=i+1
+kmeans_glove_size=int(math.sqrt(math.floor(len(all_glove_train))))
+all_glove_train=np.squeeze(np.asarray(all_glove_train))
+ 
+kmeans_codebook_glove=learn_kmeans_codebook(all_glove_train, kmeans_glove_size)    
      
 
-i=0
-for cat in test_dict:
-    cat_frames=np.where(glovetable_test[:]['category']==cat)[0]
-    words_within_bag=np.ravel(glovetable_test[cat_frames]['grid_word'])
+
+print("Creating LSTM training and lstm features")
+
+
+
+X_glove_train=np.zeros((0,num_LSTMs,kmeans_codebook_glove.n_clusters))
+y_file_train=[]
+
+for i in xrange(len(file_intervals_train)):
+    current_file_frames=range(file_intervals_train[i][0],file_intervals_train[i][1])
+    true_cat=glovetable_train[int((file_intervals_train[i][0]+file_intervals_train[i][1])/2)]['category']  
+   
+    current_file_words=glovetable_train[current_file_frames]['word']
+    list_bovws=list(chunks(current_file_words,bovw_size))     
+    if len(list_bovws[-1])<bovw_size:
+        list_bovws.pop()
         
-    sum_embedded_gridded=[]
-    for j in words_within_bag:
-        sum_embedded_gridded.append(new_gridword_representation_test[grid_dictionary_test[j]])
-
-    embedded_gridded=np.mean(np.array(sum_embedded_gridded),axis=0)    
-    
-
-
-    current_hist_bovw=np.histogram(words_within_bag,bins=bovw_bins_test,density=True)[0]
- 
-    
-    current_hist_bovw_list=current_hist_bovw.tolist()
-    hist_bovw_per_cat_test[i,:]=current_hist_bovw
-    hist_glove_per_cat_test[i,:]=embedded_gridded
-    i=i+1
-
-  
-  
-  
-print(cat_list)
-
-unique_filenames,file_indices=np.unique(glovetable_test[:]['filename'],return_index=True)
-top1_glove=[]
-top2_glove=[]
-top3_glove=[]
-
-top1_bovw=[]
-top2_bovw=[]
-top3_bovw=[]
-
-tested_videos=[]
-
-for current_test_video in  unique_filenames:
-    tested_videos.append(current_test_video)
-    current_test_video_frames=np.ravel(np.where(glovetable_test[:]['filename']==current_test_video)[0])
-    start_frame=min(current_test_video_frames)
-    end_frame=max(current_test_video_frames)
-    vide_frame_id=range(start_frame,end_frame)
-    video_grid_words=np.ravel(glovetable_test[vide_frame_id]['grid_word'])
-    middle_frame=int(0.5*(start_frame+end_frame))
-    bovw_sim=[] 
-    glove_sim=[]
-
-    for i in xrange(hist_bovw_per_cat_test.shape[0]):
+    num_bags=num_LSTMs*int(len(list_bovws)/num_LSTMs)
+    list_bovws=list_bovws[0:num_bags]
+    ind=range(0,num_bags+1,num_LSTMs)
+    for ind1,ind2 in zip(ind,ind[1:]):
         
+        temp_bag_hist=np.zeros((1,num_LSTMs,kmeans_codebook_glove.n_clusters))
+        j=0
+        y_file_train.append(cat_list.index(true_cat))
+        for bag_ind in xrange(ind1,ind2):
+            words_hist=[]
+            words=list_bovws[bag_ind]
+            for w in words:
+                words_hist.append(glove_model.word_vectors[corpus_dict[w]].reshape(1,-1))
+            glove_array=np.squeeze(np.array(words_hist))
+            current_bag_hist=np.ravel(calc_bovw(glove_array, kmeans_codebook_glove).reshape(1,-1))
+            for k in current_bag_hist:       
+                temp_bag_hist[0,j,int(k)]=current_bag_hist[int(k)]
+        j=j+1
+        X_glove_train=np.vstack((X_glove_train,temp_bag_hist))
+            
+y_train=np_utils.to_categorical(y_file_train,len(cat_list) )
+
+
+
+
+
+
+X_glove_test=np.zeros((0,num_LSTMs,kmeans_codebook_glove.n_clusters))
+y_file_test=[]
+
+for i in xrange(len(file_intervals_test)):
+    current_file_frames=range(file_intervals_test[i][0],file_intervals_test[i][1])
+    true_cat=glovetable_test[int((file_intervals_test[i][0]+file_intervals_test[i][1])/2)]['category']  
+   
+    current_file_words=glovetable_test[current_file_frames]['word']
+    list_bovws=list(chunks(current_file_words,bovw_size))     
+    if len(list_bovws[-1])<bovw_size:
+        list_bovws.pop()
         
-        hist_video_words=np.histogram(video_grid_words,bins=bovw_bins,density=True)[0]
-    
-        cat_score=hist_intersection(hist_bovw_per_cat[i,:],hist_video_words)
-        bovw_sim.append(cat_score)
+    num_bags=num_LSTMs*int(len(list_bovws)/num_LSTMs)
+    list_bovws=list_bovws[0:num_bags]
+    ind=range(0,num_bags+1,num_LSTMs)
+    for ind1,ind2 in zip(ind,ind[1:]):
         
-    for i in xrange(hist_bovw_per_cat_test.shape[0]):
+        temp_bag_hist=np.zeros((1,num_LSTMs,kmeans_codebook_glove.n_clusters))
+        j=0
+        y_file_test.append(cat_list.index(true_cat))
+        for bag_ind in xrange(ind1,ind2):
+            words_hist=[]
+            words=list_bovws[bag_ind]
+            for w in words:
+                try:
+                    words_hist.append(glove_model.word_vectors[corpus_dict[w]].reshape(1,-1))
+                except:
+                    pass
+            glove_array=np.squeeze(np.array(words_hist))
+            current_bag_hist=np.ravel(calc_bovw(glove_array, kmeans_codebook_glove).reshape(1,-1))
+            for k in current_bag_hist:       
+                temp_bag_hist[0,j,int(k)]=current_bag_hist[int(k)]
+        j=j+1
+        X_glove_test=np.vstack((X_glove_test,temp_bag_hist))
+            
+                
+y_test=np_utils.to_categorical(y_file_test,len(cat_list) )
+
+
+
+
+print("Evaluating Glove by LSTM")
 
-        sum_embedded_gridded=[]
-        for j in video_grid_words:
-            try:
-                sum_embedded_gridded.append(new_gridword_representation[grid_dictionary[j]])
-            except:
-                pass
-        embedded_gridded=np.mean(np.array(sum_embedded_gridded),axis=0)    
-        a=hist_glove_per_cat[i,:]
-        b=embedded_gridded
-        cos_sim = dot(a, b)/(norm(a)*norm(b))
-        glove_sim.append(cos_sim)
-    cat_array=np.asarray(cat_list)
-    bovw_sim=np.asarray(bovw_sim)
-    glove_sim=np.asarray(glove_sim)
-    bovw_sim_ranked=bovw_sim[bovw_sim.argsort()[::-1]] 
-    bovw_category_predicted=cat_array[bovw_sim.argsort()[::-1]]
-    glove_sim_ranked=glove_sim[glove_sim.argsort()[::-1]] 
-    glove_category_predicted=cat_array[glove_sim.argsort()[::-1]]
-    true_cat=glovetable_test[middle_frame]['category']
-    if true_cat in glove_category_predicted[0]:
-        top1_glove.append(current_test_video)
-    if true_cat in glove_category_predicted[0:1]:
-        top2_glove.append(current_test_video)
-    if true_cat in glove_category_predicted[0:2]:
-        top3_glove.append(current_test_video)
-
-    if true_cat in bovw_category_predicted[0]:
-        top1_bovw.append(current_test_video)
-    if true_cat in bovw_category_predicted[0:1]:
-        top2_bovw.append(current_test_video)
-    if true_cat in bovw_category_predicted[0:2]:
-        top3_bovw.append(current_test_video)
-print("Bovw top-1 accuracy")
-print(len(top1_bovw)/len(tested_videos))
-
-print("Glove top-1 accuracy")
-print(len(top1_glove)/len(tested_videos))
-
-    
-
-
- 
-
-
-    
- 
-
-
-
-
-# Histogram intersection for classification of bovws
-
-
-
-
-# Histogram intersection for classification of gloves
-
-
-    
-
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- 
-unique_bovws,bovw_indices=np.unique(glovetable[:]['bovw_id'],return_index=True)
-num_bovws=len(unique_bovws)
-unique_bovws=unique_bovws[bovw_indices.argsort()] 
-bovw_indices=np.sort(bovw_indices)  
-
-
-
-class bovwfeature_hdf(tb.IsDescription):
-    category        = tb.StringCol(10,pos=1) 
-    filename        = tb.StringCol(200,pos=2) 
-    current_bovw       = tb.Int32Col(pos=3) 
-    embedded_holistic            = tb.Float32Col(embedding_size,pos=4) 
-    embedded_gridded           = tb.Float32Col(embedding_size,pos=5) 
-
-                      
-
-
-bovwh = tb.open_file(bovwfeatures, mode='w')
-bovwtable = bovwh.create_table(bovwh.root, 'table', bovwfeature_hdf,"A table") 
-
-
-
-
-bovw_indices=np.append(bovw_indices,len(glovetable)-1)
-bovw_indices=list(OrderedDict.fromkeys(bovw_indices))
-
-for bovw_ind_before, bocw_ind_after in zip(bovw_indices, bovw_indices[1:]):
-    current_bovw=glovetable[bovw_ind_before]['bovw_id']
-    filename=glovetable[bovw_ind_before]['filename']
-    category=glovetable[bovw_ind_before]['category']
-    words_within_bag=np.ravel(glovetable[bovw_ind_before:bocw_ind_after-1]['grid_word'])
-    
-    whole_word_for_bag=glovetable[bovw_ind_before:bocw_ind_after-1]['word']
-    sum_embedded_gridded=[]
-    for i in words_within_bag:
-        sum_embedded_gridded.append(new_gridword_representation[grid_dictionary[i]])
-        
-    embedded_gridded=np.mean(np.array(sum_embedded_gridded),axis=0)
-    
-    
-    
-    sum_embedded_holistic=[]   
-    """
-    for i in whole_word_for_bag:
-        sum_embedded_holistic.append(new_word_representation[dictionary[i]])
-    np.mean(np.array(sum_embedded_holistic),axis=0)
-    
-    embedded_holisitc=np.mean(np.array(sum_embedded_holistic),axis=0)
-
-    """
- 
-    bovwtable.append([(category,filename,current_bovw,embedded_gridded,embedded_gridded)])
-
-
- 
-
-
-
-
-gloveh.close()
-glovefileh = tb.open_file(glovefeatures, mode='r')
-glovetable = glovefileh.root.table
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# dic_keys=old gridded Words
-# dic_values= position of the word in dictionary
- 
-cat_list=[]
-sample_ind=0
-overall_bovw_ind=[]
-X_bovw_code=[]
-X_raw_code=[]
-X_glove_code=[]
-X_sample_timestep=[]
-"""
-Video file level containing BOVW
-"""
-
-print("Video file level containing BOVW")
-for i in xrange(num_videos):
-     videofile[i].filename=unique_filenames[i]
-     current_contained_bovws= [ind for ind in range(bovwtable.nrows) if bovwtable[ind]['filename'] == unique_filenames[i]]
-     videofile[i].contained_bovws=current_contained_bovws
-     videofile[i].category= bovwtable[current_contained_bovws[len(current_contained_bovws)//2]]['category']
-     # Format the training and testing for TFlearn LSTM model
-     chunks_bovws_ind=list(chunks(current_contained_bovws,num_LSTMs))
-     if len(chunks_bovws_ind[len(chunks_bovws_ind)-1])<num_LSTMs:
-         chunks_bovws_ind=chunks_bovws_ind[0:len(chunks_bovws_ind)-1]
-     timestep_ind=0
-     for current_bovw_chunk_ind in chunks_bovws_ind:
-         cat_list.append(dirs.tolist().index(videofile[i].category))
-         for timestep in xrange(num_LSTMs):
-             overall_bovw_ind.append(current_bovw_chunk_ind[timestep])
-             current_glove_words=bovwtable[current_bovw_chunk_ind[timestep]]['embedded_gridded']
-             X_glove_code.append(current_glove_words)
-             X_sample_timestep.append((sample_ind,timestep))
-         sample_ind=sample_ind+1
-          
-         
- 
-# Training samples to LSTM (num samples X num timesteps aka LSTMS X feature dim)
- 
-X_glove=np.zeros((sample_ind,num_LSTMs,len(X_glove_code[0])))
-
-for i in xrange(len(overall_bovw_ind)):
-    ind1=X_sample_timestep[i][0]
-    ind2=X_sample_timestep[i][1]
-    X_glove[ind1,ind2,:]=X_glove_code[i]
-    
-  
-# Split training and testing sets for frames
-all_frames_ind_2=range(len(cat_list))
-train_ind_2= sample(all_frames_ind_2,int(0.5*len(cat_list)))
-test_ind_2=np.delete(all_frames_ind_2,train_ind_2)
-
-
-nb_classes=len(dirs)
-Y = np_utils.to_categorical(np.asarray(cat_list),nb_classes )
-
-
-  
-X_glove_test=X_glove[test_ind_2,:]   
-X_glove_train=X_glove[train_ind_2,:]
-Y_test=Y[test_ind_2,:]   
-Y_train=Y[train_ind_2,:]  
- 
- 
- 
-  
-print('Evaluate IRNN with Glove...')
 model = Sequential()
 
 model.add(LSTM(output_dim=hidden_units,activation='relu',input_shape=X_glove_train.shape[1:]))
- 
-model.add(Dense(nb_classes))
+model.add(Dense(len(cat_list)))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
 model.compile(loss='categorical_crossentropy',
               optimizer=rmsprop,
               metrics=['accuracy'])
 
-model.fit(X_glove_train, Y_train, nb_epoch=nb_epochs,verbose=0)
+model.fit(X_glove_train, y_train, nb_epoch=nb_epochs,verbose=0)
 
-scores = model.evaluate(X_glove_test, Y_test, verbose=0)
+scores = model.evaluate(X_glove_test, y_test, verbose=0)
+
 #print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
-bovwh.close()
-gloveh.close() 
-  
+
+
+
+
+
+
+
+
+
+
+ 
+ 
