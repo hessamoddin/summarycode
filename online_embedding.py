@@ -45,6 +45,27 @@ glovefeatures_test="glove_test.h5"
 Define functions
 """
 
+def mAP_Calculator(X_test,y_test):
+ 
+    ranked_classes_all=np.argsort(-model.predict(X_test),axis=1)
+
+    AP=0
+    sum_ind=0
+ 
+    for i in xrange(len(y_test)):
+            #predicted_classes=np.argmax(model.predict(vgg_matrix_test),axis=1)
+        expected_class=int(list(y_test[-1]).index(1))
+        predicted_classes=ranked_classes_all[i,:]
+        x=(predicted_classes==expected_class)
+        r=x*1
+        ind=np.where(predicted_classes==expected_class)[0][0]
+        sum_ind=sum_ind+ind
+        #AP=AP+1./(1+ind)
+        AP=AP+sum([sum(r[:z + 1]) / (z + 1.)  for z, y in enumerate(r) if y])
+    
+    mAP=AP/len(y_test)
+    return mAP
+
 def LSTM_Func(hidden_units,vgg_matrix_train,num_cats,learning_rate,y_train,nb_epochs,vgg_matrix_test, y_test):
 
     model = Sequential()
@@ -408,7 +429,7 @@ file_indices_appended=np.append(file_indices,glovetable_train.shape[0])
 
 embedding_size=[512]
 hidden_units = [256]
-num_LSTMs=[15]
+num_LSTMs=[8]
 parametrized_performance=[]
 
 for size in embedding_size:
@@ -443,24 +464,10 @@ for size in embedding_size:
             
 
 
- 
-ranked_classes_all=np.argsort(-model.predict(X_test),axis=1)
+  
+mAP=mAP_Calculator(X_test,y_test)
 
-AP=0
-sum_ind=0
- 
-for i in xrange(len(y_test)):
-        #predicted_classes=np.argmax(model.predict(vgg_matrix_test),axis=1)
-    expected_class=int(list(y_test[-1]).index(1))
-    predicted_classes=ranked_classes_all[i,:]
-    x=(predicted_classes==expected_class)
-    r=x*1
-    ind=np.where(predicted_classes==expected_class)[0][0]
-    sum_ind=sum_ind+ind
-    #AP=AP+1./(1+ind)
-    AP=AP+sum([sum(r[:z + 1]) / (z + 1.)  for z, y in enumerate(r) if y])
-    
-mAP=AP/len(y_test)
-#print('Mean Average Precision:',mAP)
+
+print('Mean Average Precision:',mAP)
      
  
