@@ -451,7 +451,7 @@ sum_ind=0
  
 for i in xrange(len(y_test)):
         #predicted_classes=np.argmax(model.predict(vgg_matrix_test),axis=1)
-    expected_class=int(y_test_label[i])
+    expected_class=int(list(y_test[-1]).index(1))
     predicted_classes=ranked_classes_all[i,:]
     x=(predicted_classes==expected_class)
     r=x*1
