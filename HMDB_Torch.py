@@ -21,11 +21,11 @@ from glove import Glove
 from sklearn import preprocessing
 from glove import Corpus
 from keras.layers import Dropout
+from gensim import utils, corpora, matutils, models
+import glove
 
 
- 
-
-import array
+ import array
 import logging
 import sklearn.mixture.gmm as gm
 import numpy as np
@@ -97,6 +97,11 @@ clip_norm = 1.0
 embedding_size=300
 N=4
 
+
+def hist_intersection(hist_1, hist_2):
+    minima = np.minimum(hist_1, hist_2)
+    intersection = np.true_divide(np.sum(minima), np.sum(hist_2))
+    return intersection
 
 def word_embedding(sentences,embedding_size,windows_len):
     """
@@ -374,20 +379,13 @@ glove_matrix_train=np.zeros((vgg_matrix_train.shape[0],vgg_matrix_train.shape[1]
 glove_matrix_test=np.zeros((vgg_matrix_test.shape[0],vgg_matrix_test.shape[1],embedding_size))
 
 
-glove_cocurance_train=[]
-
-for i in xrange(int(max(labels_arr_train))):
-    inds=np.where(labels_arr_train==i+1)[0]
-    list_labels=[]
-    for ind in inds:
-        for ind_row in bovw_matrix_train[ind]:
-            list_labels.append(int(ind_row))
-    glove_cocurance_train.append(list_labels)
         
          
+hidden_units=128
+embedding_size=1000
          
 model = Sequential()
-model.add(Embedding(2048, hidden_units, input_shape=bovw_matrix_train.shape[1:]))
+model.add(Embedding(embedding_size, hidden_units, input_shape=bovw_matrix_train.shape[1:]))
 model.add(Dropout(0.1))
 
 #model.add(LSTM(hidden_units, return_sequences=True))
@@ -427,4 +425,93 @@ for i in xrange(num_test_samples):
 mAP=AP/num_test_samples
 print('Mean Average Precision:',mAP)
 
+glove_cocurance_train=[]
+
+for i in xrange(int(max(labels_arr_train))):
+    inds=np.where(labels_arr_train==i+1)[0]
+    list_labels=[]
+    for ind in inds:
+        for ind_row in bovw_matrix_train[ind]:
+            list_labels.append(int(ind_row))
+    glove_cocurance_train.append(list_labels)
+    
+    
+glove_cocurance_test=[]
+
+for i in xrange(int(max(labels_arr_test))):
+    inds=np.where(labels_arr_test==i+1)[0]
+    list_labels=[]
+    for ind in inds:
+        for ind_row in bovw_matrix_test[ind]:
+            list_labels.append(int(ind_row))
+    glove_cocurance_test.append(list_labels)
+    
+
+
+Query_ind=0
+Query_hist=np.histogram(glove_cocurance_train[Query_ind],bins=range(0,1+kmeans_codebook_size),density=True)[0]
+
+Target_ind=1
+Target_hist=np.histogram(glove_cocurance_test[Target_ind],bins=range(0,1+kmeans_codebook_size),density=True)[0]
+sim=hist_intersection(Query_hist,Target_hist)
+
+sim_mat=np.zeros((len(glove_cocurance_test),len(glove_cocurance_train)))
+
+for Query_ind in xrange(len(glove_cocurance_test)):
+    for Target_ind in xrange(len(glove_cocurance_train)):
+        Query_hist=np.histogram(glove_cocurance_train[Query_ind],bins=range(0,1+kmeans_codebook_size),density=True)[0]
+        Target_hist=np.histogram(glove_cocurance_test[Target_ind],bins=range(0,1+kmeans_codebook_size),density=True)[0]
+        sim_mat[Query_ind,Target_ind]=hist_intersection(Query_hist,Target_hist)
+    
+print("Wow 82 percent train and test compatibility")    
+
+actual_labels=[]
+predicted_labels=[]
+
+sim_mat=np.zeros((bovw_matrix_test.shape[0],len(glove_cocurance_train)))
+for Query_ind in xrange(bovw_matrix_test.shape[0]):
+    print(Query_ind)
+    for Target_ind in xrange(len(glove_cocurance_train)):
+        q=np.histogram(bovw_matrix_test[Query_ind] ,bins=range(0,1+kmeans_codebook_size),density=True)[0]
+        t=np.histogram(glove_cocurance_train[Target_ind],bins=range(0,1+kmeans_codebook_size),density=True)[0]
+        sim_mat[Query_ind,Target_ind]=hist_intersection(q,t)
         
+  
+    
+predicted_labels=np.argmax(sim_mat,axis=1)
+actual_labels=labels_arr_test-1
+accuracy=0
+
+for i in xrange(len(predicted_labels)):
+    if predicted_labels[i]==actual_labels[i]:
+        accuracy=accuracy+1
+        
+print("Accuracy of simple hist of words")        
+print(accuracy/len(predicted_labels))
+         
+wiki=[]
+for i in xrange(len(glove_cocurance_train)):
+    current_cat_glove=glove_cocurance_train[i]
+    current_cat_string =   ['{:.2f}'.format(x) for x in current_cat_glove]
+    wiki.append(current_cat_string)
+    
+    
+
+
+id2word = corpora.Dictionary(wiki)
+id2word.filter_extremes(keep_n=30000)
+word2id = dict((word, id) for id, word in id2word.iteritems())
+ 
+# Filter all wiki documents to contain only those 30k words.
+filter_text = lambda text: [word for word in text if word in word2id]
+filtered_wiki = lambda: (filter_text(text) for text in wiki)  # generator
+ 
+# Get the word co-occurrence matrix -- needs lots of RAM!!
+cooccur = glove.Corpus()
+cooccur.fit(filtered_wiki(), window=10)
+ 
+# and train GloVe model itself, using 10 epochs
+model_glove = glove.Glove(no_components=600, learning_rate=0.05)
+model_glove.fit(cooccur.matrix, epochs=10)
+model_glove.add_dictionary(cooccur.dictionary)
+model_glove.most_similar('71.00')
