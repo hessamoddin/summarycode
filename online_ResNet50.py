@@ -15,16 +15,80 @@ from sklearn.metrics.pairwise import cosine_similarity
 from keras.models import Sequential
 from keras.layers import LSTM, Dense
 from keras.utils import np_utils
-
+from sklearn.cluster import AffinityPropagation
+ 
 
 
 
 database_path="/home/hessam/Activity_recognition/HMDB" 
-precent_train=0.7
+precent_train=0.5
 Num_LSTMs=8
 subsample_rate=5
 max_vid_len=Num_LSTMs* subsample_rate # 8 sample frames per videoss
-embedding_size=200
+embedding_size=400
+
+
+def Raw_Frame_Reader(h5_train_files):
+  #  raw_matrix_train=np.zeros((len(h5_train_files),Num_LSTMs,2048))
+
+    y_train_categories=[]
+    resnet50_train_overall=np.zeros((0,2048))
+    for i in xrange(len(h5_train_files)):
+   # for i in xrange(20):
+        current_file=h5_train_files[i]
+        current_cat=os.path.split(os.path.dirname(current_file))[1]
+        rawfeaturefileh = tb.open_file(current_file, mode='r')
+        num_frames=rawfeaturefileh.root.table.nrows
+        if num_frames>0:
+            y_train_categories.append(current_cat)
+        
+
+        for j in xrange(num_frames):
+            current_frame_rawfeature=rawfeaturefileh.root.table[j]['rawfeature']
+           # raw_matrix_train[i,j,:]=current_frame_rawfeature
+            resnet50_train_overall=np.vstack((resnet50_train_overall,current_frame_rawfeature))
+        rawfeaturefileh.close()
+    return resnet50_train_overall,y_train_categories#,raw_matrix_train
+    
+    
+    
+     
+    
+     
+
+    
+    
+
+def Evaluate_Classification(glove_matrix_train,y_train_categorized,glove_matrix_test,y_test_categorized,hidden_layers,num_stacks,batch_size,nb_epoch):
+# expected input data shape: (batch_size, timesteps, data_dim)
+    model = Sequential()
+    
+    data_dim=glove_matrix_train.shape[2]
+    
+    model.add(LSTM(hidden_layers, return_sequences=True,input_shape=(timesteps, data_dim)))  # returns a sequence of vectors of dimension 32
+    
+    for i in xrange(num_stacks-2):
+        model.add(LSTM(hidden_layers, return_sequences=True))  # returns a sequence of vectors of dimension 32
+
+    model.add(LSTM(hidden_layers))  # return a single vector of dimension 32
+    model.add(Dense(nb_classes, activation='softmax'))
+
+           
+          
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop',metrics=['accuracy'])
+    model.fit(glove_matrix_train, y_train_categorized,batch_size=batch_size, nb_epoch=nb_epoch,verbose=0)
+          
+          # Final evaluation of the model
+    scores = model.evaluate(glove_matrix_test, y_test_categorized)
+    return scores[1]*100
+    
+    
+
+    
+     
+    
+    
+    
 
 
 def Array2MatStr(bovw_matrix,word2vec_model,embedding_size):
@@ -54,9 +118,10 @@ def Word2Glove(bovw_matrix_train,embedding_size):
         
     
     id2word = corpora.Dictionary(sentences)
-    #id2word.filter_extremes(keep_n=285)
+   # id2word.filter_extremes(no_below=5, no_above=0.15)
+   # id2word.filter_extremes( no_below=5)
     word2id = dict((word, id) for id, word in id2word.iteritems())
-    # Filter all wiki documents to contain only those 30k words.
+    print(len(word2id))
     filter_text = lambda text: [word for word in text if word in word2id]
     filtered_wiki = lambda: (filter_text(text) for text in sentences)  # generator
     
@@ -87,68 +152,71 @@ print("***********")
 
 print("Split training and testing sets of files ...")
 h5_files_path=database_path+'/**/*.h5'
+
 h5_all_files=glob.glob(h5_files_path) 
-h5_train_files, h5_test_files=train_test_split(h5_all_files,train_size=precent_train)
+#h5_all_files.sort()
+#h5_all_files=h5_all_files[1:600]
+
+h5_train_files, h5_test_files=train_test_split(h5_all_files,train_size=precent_train,random_state=42)
+
+#h5_train_files.sort()
+#h5_test_files.sort()
 
 
-print("Accumulating ResNet training features across training set  ...")
-resnet50_train_overall=np.zeros((0,2048))
 
-y_train_categories=[]
 
-for current_file in h5_train_files:
-    current_cat=os.path.split(os.path.dirname(current_file))[1]
-    y_train_categories.append(current_cat)
-    rawfeaturefileh = tb.open_file(current_file, mode='r')
-    num_frames=rawfeaturefileh.root.table.nrows
-    for i in xrange(num_frames):
-        current_video_rawfeature=rawfeaturefileh.root.table[i]['rawfeature']
-        resnet50_train_overall=np.vstack((resnet50_train_overall,current_video_rawfeature))
-    rawfeaturefileh.close()
-    
-  
-y_test_categories=[]
-for current_file in h5_test_files:
-    current_cat=os.path.split(os.path.dirname(current_file))[1]
-    y_test_categories.append(current_cat)
+print("Accumulating ResNet training and testing features ...")
 
+resnet50_train_overall,y_train_categories=Raw_Frame_Reader(h5_train_files)   
+raw_matrix_train=resnet50_train_overall.reshape(resnet50_train_overall.shape[0]/Num_LSTMs,Num_LSTMs,resnet50_train_overall.shape[1])
+
+resnet50_test_overall,y_test_categories=Raw_Frame_Reader(h5_test_files)  
+raw_matrix_test=resnet50_test_overall.reshape(resnet50_test_overall.shape[0]/Num_LSTMs,Num_LSTMs,resnet50_test_overall.shape[1])
+ 
 
 
 print("Calculate Kmeans codebook for quantization  ...")
 
-kmeans_codebook_size=int(math.sqrt(math.floor(resnet50_train_overall.shape[0])))*6
+kmeans_codebook_size=int(math.sqrt(math.floor(resnet50_train_overall.shape[0])))
 kmeans_codebook = KMeans( n_clusters=kmeans_codebook_size)
 kmeans_codebook.fit(resnet50_train_overall)
 
+
+
+print("Calculate AP codebook for quantization  ...")
+af = AffinityPropagation().fit(resnet50_train_overall)
+cluster_centers_indices = af.cluster_centers_indices_
+labels = af.labels_
+AP_codebook_size = len(cluster_centers_indices) 
+
+bovw_matrix_train=np.zeros((raw_matrix_train.shape[0],raw_matrix_train.shape[1]))
+
+for i in xrange(bovw_matrix_train.shape[0]):
+    for j in xrange(bovw_matrix_train.shape[1]):
+        current_frame_rawfeature=raw_matrix_train[i,j]
+        current_frame_w=kmeans_codebook.predict(current_frame_rawfeature.reshape(1,-1))[0]
+        current_frame_w=af.predict(current_frame_rawfeature.reshape(1,-1))[0]
+        bovw_matrix_train[i,j]=int(current_frame_w)
+
+
+bovw_matrix_test=np.zeros((raw_matrix_test.shape[0],raw_matrix_test.shape[1]))
+
+for i in xrange(bovw_matrix_test.shape[0]):
+    for j in xrange(bovw_matrix_test.shape[1]):
+        current_frame_rawfeature=raw_matrix_test[i,j]
+        current_frame_w=kmeans_codebook.predict(current_frame_rawfeature.reshape(1,-1))[0]
+        current_frame_w=af.predict(current_frame_rawfeature.reshape(1,-1))[0]
+        bovw_matrix_test[i,j]=int(current_frame_w)
+
+ 
+ 
+ 
 print("***********")
 print("W->Glove")
 print("***********")
 
 
 print("Calculate coocurance  ...")
-
-
-bovw_matrix_train=np.zeros((len(h5_train_files),Num_LSTMs))
-for i in xrange(len(h5_train_files)):
-    rawfeaturefileh = tb.open_file(h5_train_files[i], mode='r')
-    num_frames=rawfeaturefileh.root.table.nrows
-    for j in xrange(num_frames):
-        current_frame_rawfeature=rawfeaturefileh.root.table[j]['rawfeature']
-        current_frame_w=kmeans_codebook.predict(current_frame_rawfeature)[0]
-        bovw_matrix_train[i,j]=int(current_frame_w)
-        
-        
-bovw_matrix_test=np.zeros((len(h5_test_files),Num_LSTMs))
-for i in xrange(len(h5_test_files)):
-    rawfeaturefileh = tb.open_file(h5_test_files[i], mode='r')
-    num_frames=rawfeaturefileh.root.table.nrows
-    for j in xrange(num_frames):
-        current_frame_rawfeature=rawfeaturefileh.root.table[j]['rawfeature']
-        current_frame_w=kmeans_codebook.predict(current_frame_rawfeature)[0]
-        bovw_matrix_test[i,j]=int(current_frame_w)
-
- 
-print("Calculate Glove  ...")
 
 model_glove,word2id=Word2Glove(bovw_matrix_train,embedding_size)
 
@@ -157,6 +225,8 @@ glove_matrix_train=np.zeros((bovw_matrix_train.shape[0],bovw_matrix_train.shape[
 glove_matrix_test=np.zeros((bovw_matrix_test.shape[0],bovw_matrix_test.shape[1],embedding_size))
 
 
+ 
+print("Calculate Glove  ...")
 
 
 for i in  xrange(glove_matrix_train.shape[0]):
@@ -205,29 +275,38 @@ for cat in y_test_categories:
     y_test.append(cat_dict[cat])
 y_test_categorized = np_utils.to_categorical(y_test)
 
-
-
-# expected input data shape: (batch_size, timesteps, data_dim)
-model = Sequential()
-model.add(LSTM(32, return_sequences=True,
-               input_shape=(timesteps, data_dim)))  # returns a sequence of vectors of dimension 32
-model.add(LSTM(32, return_sequences=True))  # returns a sequence of vectors of dimension 32
-model.add(LSTM(32))  # return a single vector of dimension 32
-model.add(Dense(nb_classes, activation='softmax'))
-
-model.compile(loss='categorical_crossentropy', optimizer='rmsprop',metrics=['accuracy'])
  
-model.fit(glove_matrix_train, y_train_categorized,
-          batch_size=16, nb_epoch=300,
-          validation_data=(glove_matrix_test, y_test_categorized))
 
 
+
+
+hidden_layers=256
+num_stacks=3
+batch_size=16
+nb_epoch=100
+
+glove_acc=Evaluate_Classification(glove_matrix_train,y_train_categorized,glove_matrix_test,y_test_categorized,hidden_layers,num_stacks,batch_size,nb_epoch)
+print("Glove accuracy:")
+print(glove_acc)
+
+raw_acc=Evaluate_Classification(raw_matrix_train,y_train_categorized,raw_matrix_test,y_test_categorized,hidden_layers,num_stacks,batch_size,nb_epoch)
+print("Raw accuracy:")
+print(raw_acc)
+
+
+
+
+
+
+
+
+ 
+
+
+print("effect of cross vaidation")
 
 
 print("effect of noise removal")
-
-print("effect of glove")
-
 
 
 
